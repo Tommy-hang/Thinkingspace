@@ -166,6 +166,56 @@ try {
   );
   check('localSummary 去掉换行', !titleMod.localSummary('第一行\n\n第二行').includes('\n'));
 
+  // --- 推理能力（V0.3.5）---
+  const reasoningMod = await server.ssrLoadModule('/src/lib/reasoning.ts');
+  const mentionMod = await server.ssrLoadModule('/src/lib/mention.ts');
+  const mockProvider = {
+    id: 'mock',
+    displayName: '离线演示',
+    baseUrl: '',
+    model: 'mock',
+    kind: 'mock',
+    enabled: true,
+  };
+  const sampleAnswer = '### 注意力分数的缩放\n\n除以 √dk 是为了防止点积方差随维度爆炸。';
+
+  const digest = await reasoningMod.generateDigest({
+    provider: mockProvider,
+    apiKey: '',
+    content: '',
+    fallbackQuestion: '为什么要除以根号 dk？',
+    fallbackAnswer: sampleAnswer,
+  });
+  check('generateDigest 离线回退到知识点标题', digest.title === '注意力分数的缩放');
+  check('generateDigest 生成当前理解', digest.summary.includes('点积方差'));
+
+  const suggestions = await reasoningMod.generateSuggestions({
+    provider: mockProvider,
+    apiKey: '',
+    question: '为什么要除以根号 dk？',
+    answer: sampleAnswer,
+  });
+  check(
+    'generateSuggestions 离线回退为 3 个方向',
+    suggestions.length === 3 && suggestions.every((s) => s.intent && s.question),
+  );
+
+  const insight = reasoningMod.localInsight('Attention', [
+    { ...t('QKV', 'Attention'), title: 'QKV', summary: '三种角色分工' },
+    { ...t('Softmax', 'Attention'), title: 'Softmax', summary: '归一化成权重' },
+  ]);
+  check('localInsight 汇总子分支结论', insight.includes('三种角色分工') && insight.includes('归一化成权重'));
+
+  const mentionNodes = [
+    { ...t('n1', null), title: 'Attention' },
+    { ...t('n2', null), title: 'CNN' },
+  ];
+  check(
+    '@ 引用解析出两个主题',
+    mentionMod.extractMentions('请比较 @Attention 和 @CNN 的差异', mentionNodes).length === 2,
+  );
+  check('firstSentence 提取首句', mentionMod.firstSentence('这是第一句。这是第二句。') === '这是第一句');
+
   const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
   check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
 

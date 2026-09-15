@@ -4,6 +4,7 @@ import type {
   PersistedData,
   Project,
   ProviderConfig,
+  ReasoningSettings,
   SearchProviderConfig,
   SearchSettings,
   Settings,
@@ -114,6 +115,10 @@ export const DEFAULT_THINKING: ThinkingSettings = {
   effort: 'high',
 };
 
+export const DEFAULT_REASONING: ReasoningSettings = {
+  suggestBranches: true,
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   activeProviderId: 'mock',
   providers: DEFAULT_PROVIDERS,
@@ -126,6 +131,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   thinking: DEFAULT_THINKING,
   search: DEFAULT_SEARCH_SETTINGS,
+  reasoning: DEFAULT_REASONING,
 };
 
 export type Secrets = Record<string, string>;
@@ -282,6 +288,7 @@ export function loadData(): PersistedData {
       context: { ...DEFAULT_SETTINGS.context, ...parsed.settings?.context },
       providers: mergeProviders(parsed.settings?.providers),
       thinking: { ...DEFAULT_SETTINGS.thinking, ...parsed.settings?.thinking },
+      reasoning: { ...DEFAULT_SETTINGS.reasoning, ...parsed.settings?.reasoning },
       search: {
         ...DEFAULT_SETTINGS.search,
         ...parsed.settings?.search,

@@ -63,6 +63,22 @@ export interface HistorySnapshot {
   activeProjectId: string | null;
 }
 
+/** 尚未解决的问题 —— 与「已获得的认知」同等重要 */
+export interface OpenQuestion {
+  id: string;
+  text: string;
+  resolved?: boolean;
+  sourceMessageId?: string;
+  createdAt: number;
+}
+
+/** AI 提出的探索方向，需用户确认后才创建分支 */
+export interface BranchSuggestion {
+  intent: BranchIntent;
+  label: string;
+  question: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -90,6 +106,16 @@ export interface TopicNode {
   titleLocked?: boolean;
   /** 该分支诞生时的认知动作 */
   intent?: BranchIntent;
+  /** 「当前理解」的生成时间 */
+  summaryUpdatedAt?: number;
+  /** Merge Insights：由子分支综合而成的更高层理解 */
+  insight?: string;
+  insightUpdatedAt?: number;
+  /** 待解决问题 */
+  openQuestions?: OpenQuestion[];
+  /** AI 建议的探索方向（挂在最后一条回答上） */
+  suggestions?: BranchSuggestion[];
+  suggestionsFor?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -109,6 +135,8 @@ export interface Message {
   reasoning?: string;
   /** 本轮回答所依据的联网搜索结果 */
   sources?: SearchSource[];
+  /** 本条提问通过 @ 引用了哪些主题 */
+  mentions?: string[];
   createdAt: number;
   /** true while the model is still streaming into this message */
   pending?: boolean;
@@ -179,6 +207,11 @@ export interface ContextSettings {
   maxAncestorChars: number;
 }
 
+export interface ReasoningSettings {
+  /** 每次回答后是否自动让 AI 提议探索方向 */
+  suggestBranches: boolean;
+}
+
 export interface Settings {
   activeProviderId: string;
   providers: ProviderConfig[];
@@ -186,6 +219,7 @@ export interface Settings {
   context: ContextSettings;
   thinking: ThinkingSettings;
   search: SearchSettings;
+  reasoning: ReasoningSettings;
 }
 
 export interface PersistedData {

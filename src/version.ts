@@ -2,5 +2,5 @@
  * 每次功能更新时手动 +1，方便在界面上确认「我打开的是不是新版本」。
  * 版本号遵循产品路线：V0.4 保留给「登录 + 云同步」，在此之前都属于 V0.3.x 的体验打磨。
  */
-export const APP_VERSION = 'V0.3.4';
-export const APP_VERSION_NOTE = '使用说明面板 / AI 自动生成知识点标题 / 卡片右键菜单 / 隐藏与恢复';
+export const APP_VERSION = 'V0.3.5';
+export const APP_VERSION_NOTE = '推理工作空间：当前理解 / 待解决问题 / 探索方向建议 / 综合理解 / @ 引用主题';

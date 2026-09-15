@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type {
   BranchAnchor,
   BranchIntent,
+  BranchSuggestion,
   ContextSettings,
   GraphEdge,
   HistorySnapshot,
@@ -23,7 +24,7 @@ import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
 import { getVisibleNodes } from '../lib/tree';
 import { intentToEdgeType } from '../lib/branchIntent';
-import { generateTitle, localSummary } from '../lib/title';
+import { generateDigest, generateInsight, generateSuggestions } from '../lib/reasoning';
 import {
   loadData,
   loadSecrets,
@@ -79,7 +80,14 @@ interface Actions {
   toggleCollapse: (id: string) => void;
   togglePin: (id: string) => void;
   renameNode: (id: string, title: string) => void;
-  applyAutoTitle: (id: string, title: string, summary?: string) => void;
+  applyAutoTitle: (id: string, title?: string, summary?: string) => void;
+  refreshSummary: (id: string) => Promise<void>;
+  mergeInsights: (id: string) => Promise<void>;
+  setSuggestions: (id: string, forMessageId: string, list: BranchSuggestion[]) => void;
+  generateSuggestionsFor: (id: string) => Promise<void>;
+  addOpenQuestion: (nodeId: string, text: string, sourceMessageId?: string) => void;
+  toggleOpenQuestion: (nodeId: string, questionId: string) => void;
+  removeOpenQuestion: (nodeId: string, questionId: string) => void;
   hideNode: (id: string) => void;
   hideChildren: (id: string) => void;
   unhideNode: (id: string) => void;
@@ -93,15 +101,20 @@ interface Actions {
   addEdge: (source: string, target: string, type?: GraphEdge['type']) => void;
   removeEdge: (id: string) => void;
 
-  sendMessage: (nodeId: string, text: string) => Promise<void>;
+  sendMessage: (nodeId: string, text: string, mentions?: string[]) => Promise<void>;
   regenerate: (nodeId: string) => Promise<void>;
   editUserMessage: (nodeId: string, messageId: string, content: string) => Promise<void>;
-  _generate: (nodeId: string, question: string, addUserMessage: boolean) => Promise<void>;
+  _generate: (
+    nodeId: string,
+    question: string,
+    addUserMessage: boolean,
+    mentions?: string[],
+  ) => Promise<void>;
   stopStreaming: (nodeId: string) => void;
 
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
-  focusNodeAt: (id: string, messageId: string) => void;
+  focusNodeAt: (id: string, messageId?: string) => void;
   clearFocusMessage: () => void;
   revealNode: (id: string) => void;
   clearReveal: () => void;
@@ -428,20 +441,154 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
   },
 
-  /** 由系统自动写入标题（不计入撤销历史，属于「提问」这一步的一部分） */
+  /** 由系统自动写入标题 / 当前理解（不计入撤销历史，属于「提问」这一步的一部分） */
   applyAutoTitle: (id, title, summary) =>
     set((s) => ({
+      nodes: s.nodes.map((n) => {
+        if (n.id !== id) return n;
+        const nextTitle = n.titleLocked ? n.title : title || n.title;
+        return {
+          ...n,
+          title: nextTitle,
+          summary: summary ?? n.summary,
+          summaryUpdatedAt: summary ? Date.now() : n.summaryUpdatedAt,
+          updatedAt: Date.now(),
+        };
+      }),
+    })),
+
+  /** 根据整段对话重新生成「当前理解」 */
+  refreshSummary: async (id) => {
+    const s = get();
+    const node = s.nodes.find((n) => n.id === id);
+    const project = s.projects.find((p) => p.id === node?.projectId);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!node || !project || !provider) return;
+
+    const own = s.messages.filter((m) => m.nodeId === id && m.content.trim());
+    if (own.length === 0) return;
+
+    const firstUser = own.find((m) => m.role === 'user');
+    const lastAssistant = [...own].reverse().find((m) => m.role === 'assistant');
+
+    const transcript = own
+      .slice(-24)
+      .map((m) => `${m.role === 'user' ? '我' : 'AI'}：${m.content}`)
+      .join('\n\n');
+
+    const digest = await generateDigest({
+      provider,
+      apiKey: get().secrets[provider.id] ?? '',
+      content: transcript,
+      fallbackQuestion: firstUser?.content ?? node.title,
+      fallbackAnswer: lastAssistant?.content ?? own[own.length - 1].content,
+    });
+
+    const current = get().nodes.find((n) => n.id === id);
+    if (!current) return;
+    get().applyAutoTitle(id, current.titleLocked ? undefined : digest.title, digest.summary);
+  },
+
+  /** Merge Insights：把子分支的探索综合成父主题更高层的理解 */
+  mergeInsights: async (id) => {
+    const s = get();
+    const node = s.nodes.find((n) => n.id === id);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!node || !provider) return;
+
+    const children = s.nodes.filter((n) => n.parentId === id);
+    if (children.length === 0) return;
+
+    const insight = await generateInsight({
+      provider,
+      apiKey: get().secrets[provider.id] ?? '',
+      topicTitle: node.title,
+      topicSummary: node.summary,
+      children,
+    });
+    if (!insight.trim()) return;
+
+    pushHistory();
+    set((state) => ({
+      nodes: state.nodes.map((n) =>
+        n.id === id ? { ...n, insight, insightUpdatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  setSuggestions: (id, forMessageId, list) =>
+    set((s) => ({
       nodes: s.nodes.map((n) =>
-        n.id === id && !n.titleLocked
+        n.id === id ? { ...n, suggestions: list, suggestionsFor: forMessageId } : n,
+      ),
+    })),
+
+  generateSuggestionsFor: async (id) => {
+    const s = get();
+    const node = s.nodes.find((n) => n.id === id);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!node || !provider) return;
+
+    const own = s.messages.filter((m) => m.nodeId === id && m.content.trim());
+    const lastAssistant = [...own].reverse().find((m) => m.role === 'assistant');
+    const lastUser = [...own].reverse().find((m) => m.role === 'user');
+    if (!lastAssistant || !lastUser) return;
+
+    const list = await generateSuggestions({
+      provider,
+      apiKey: get().secrets[provider.id] ?? '',
+      question: lastUser.content,
+      answer: lastAssistant.content,
+    });
+    get().setSuggestions(id, lastAssistant.id, list);
+  },
+
+  addOpenQuestion: (nodeId, text, sourceMessageId) => {
+    const clean = text.trim();
+    if (!clean) return;
+    pushHistory();
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === nodeId
           ? {
               ...n,
-              title: title || n.title,
-              summary: summary ?? n.summary,
-              updatedAt: Date.now(),
+              openQuestions: [
+                ...(n.openQuestions ?? []),
+                { id: uid('q_'), text: clean, sourceMessageId, createdAt: Date.now() },
+              ],
+            }
+          : n,
+      ),
+    }));
+  },
+
+  toggleOpenQuestion: (nodeId, questionId) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              openQuestions: (n.openQuestions ?? []).map((q) =>
+                q.id === questionId ? { ...q, resolved: !q.resolved } : q,
+              ),
             }
           : n,
       ),
     })),
+
+  removeOpenQuestion: (nodeId, questionId) => {
+    pushHistory();
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              openQuestions: (n.openQuestions ?? []).filter((q) => q.id !== questionId),
+            }
+          : n,
+      ),
+    }));
+  },
 
   hideNode: (id) => {
     pushHistory(`hide:${id}`);
@@ -555,11 +702,11 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }));
   },
 
-  sendMessage: async (nodeId, text) => {
+  sendMessage: async (nodeId, text, mentions) => {
     const question = text.trim();
     if (!question) return;
     pushHistory();
-    await get()._generate(nodeId, question, true);
+    await get()._generate(nodeId, question, true, mentions);
   },
 
   regenerate: async (nodeId) => {
@@ -577,7 +724,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => ({
       messages: state.messages.filter((m) => m.nodeId !== nodeId || keep.has(m.id)),
     }));
-    await get()._generate(nodeId, lastUser.content, false);
+    await get()._generate(nodeId, lastUser.content, false, lastUser.mentions);
   },
 
   editUserMessage: async (nodeId, messageId, content) => {
@@ -604,7 +751,7 @@ export const useStore = create<StoreState>((set, get) => ({
     await get()._generate(nodeId, text, false);
   },
 
-  _generate: async (nodeId, question, addUserMessage) => {
+  _generate: async (nodeId, question, addUserMessage, mentions) => {
     const state = get();
     const node = state.nodes.find((n) => n.id === nodeId);
     const project = state.projects.find((p) => p.id === node?.projectId);
@@ -621,7 +768,14 @@ export const useStore = create<StoreState>((set, get) => ({
     const now = Date.now();
     const isFirstTurn = !state.messages.some((m) => m.nodeId === nodeId);
     const userMessage: Message | null = addUserMessage
-      ? { id: uid('m_'), nodeId, role: 'user', content: question, createdAt: now }
+      ? {
+          id: uid('m_'),
+          nodeId,
+          role: 'user',
+          content: question,
+          mentions: mentions && mentions.length > 0 ? mentions : undefined,
+          createdAt: now,
+        }
       : null;
     const assistantMessage: Message = {
       id: uid('m_'),
@@ -692,6 +846,7 @@ export const useStore = create<StoreState>((set, get) => ({
       question,
       settings: state.settings.context,
       searchSources: sources,
+      mentionedNodeIds: mentions,
     });
 
     const controller = new AbortController();
@@ -730,21 +885,33 @@ export const useStore = create<StoreState>((set, get) => ({
         streamingNodeId: s.streamingNodeId === nodeId ? null : s.streamingNodeId,
       }));
 
-      // 第一次对话结束后，根据对话的「核心知识点」自动生成标题与摘要
-      if (isFirstTurn) {
-        const full = get().messages.find((m) => m.id === assistantMessage.id)?.content ?? '';
-        if (full.trim()) {
-          void generateTitle({
-            provider,
-            apiKey: get().secrets[provider.id] ?? '',
-            question,
-            answer: full,
-          }).then((title) => {
-            const current = get().nodes.find((n) => n.id === nodeId);
-            if (!current || current.titleLocked) return;
-            get().applyAutoTitle(nodeId, title, localSummary(full) || undefined);
-          });
-        }
+      const full = get().messages.find((m) => m.id === assistantMessage.id)?.content ?? '';
+      const apiKey = get().secrets[provider.id] ?? '';
+
+      // 第一次对话结束后：根据「核心知识点」生成标题与「当前理解」
+      if (isFirstTurn && full.trim()) {
+        void generateDigest({
+          provider,
+          apiKey,
+          content: `【提问】\n${question}\n\n【回答】\n${full}`,
+          fallbackQuestion: question,
+          fallbackAnswer: full,
+        }).then((digest) => {
+          const current = get().nodes.find((n) => n.id === nodeId);
+          if (!current) return;
+          get().applyAutoTitle(
+            nodeId,
+            current.titleLocked ? undefined : digest.title,
+            digest.summary || undefined,
+          );
+        });
+      }
+
+      // 每次回答后，让 AI 提议 2-4 个探索方向（用户可选择忽略）
+      if (full.trim() && state.settings.reasoning.suggestBranches) {
+        void generateSuggestions({ provider, apiKey, question, answer: full }).then((list) => {
+          if (list.length > 0) get().setSuggestions(nodeId, assistantMessage.id, list);
+        });
       }
     } catch (err) {
       const aborted = controller.signal.aborted;
@@ -792,7 +959,7 @@ export const useStore = create<StoreState>((set, get) => ({
   focusNodeAt: (id, messageId) =>
     set((s) => ({
       focusedNodeId: id,
-      focusMessageId: messageId,
+      focusMessageId: messageId ?? null,
       nodeMenuId: null,
       nodeMenuAnchor: null,
       recentNodeIds: [id, ...s.recentNodeIds.filter((x) => x !== id)].slice(0, 15),

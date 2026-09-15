@@ -282,6 +282,20 @@ export function SettingsPanel() {
       </section>
 
       <section className="mb-6">
+        <h3 className="mb-2 text-[13px] font-semibold">思考辅助</h3>
+        <div className="flex flex-col gap-2.5 text-[12.5px]">
+          <Toggle
+            label="每次回答后，让 AI 提议探索方向"
+            checked={settings.reasoning.suggestBranches}
+            onChange={(v) => updateSettings({ reasoning: { ...settings.reasoning, suggestBranches: v } })}
+          />
+          <p className="text-[11.5px]" style={{ color: 'var(--faint)' }}>
+            建议只是「提议」，只有你点击后才会真正创建分支。关闭它可以减少模型调用。
+          </p>
+        </div>
+      </section>
+
+      <section className="mb-6">
         <h3 className="mb-2 text-[13px] font-semibold">上下文引擎</h3>
         <div className="flex flex-col gap-2.5 text-[12.5px]">
           <Toggle

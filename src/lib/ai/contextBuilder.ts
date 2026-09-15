@@ -22,6 +22,8 @@ export interface BuildContextInput {
   maxTurns?: number;
   /** 联网检索结果，会作为最高优先级的参考资料注入 */
   searchSources?: SearchSource[];
+  /** 通过 @ 引用的其它主题，只发送它们的「当前理解」，不发送完整对话 */
+  mentionedNodeIds?: string[];
 }
 
 /**
@@ -73,6 +75,25 @@ export function buildContext(input: BuildContextInput): ChatMessage[] {
       role: 'system',
       content: formatSourcesForPrompt(input.searchSources),
     });
+  }
+
+  if (input.mentionedNodeIds && input.mentionedNodeIds.length > 0) {
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const lines = input.mentionedNodeIds
+      .map((id) => byId.get(id))
+      .filter((n): n is TopicNode => Boolean(n) && n!.id !== nodeId)
+      .map((n) => {
+        const understanding = n.insight || n.summary;
+        return `- 《${n.title}》${understanding ? `：${truncate(understanding, 400)}` : '（尚无概述）'}`;
+      });
+    if (lines.length > 0) {
+      out.push({
+        role: 'system',
+        content: `【用户 @ 引用的其它主题（来自同一个思考空间）】\n${lines.join(
+          '\n',
+        )}\n\n请在回答中自然地结合这些已有理解。`,
+      });
+    }
   }
 
   const own = messages.filter((m) => m.nodeId === nodeId && !m.error);

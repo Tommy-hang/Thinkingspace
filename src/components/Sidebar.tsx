@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/store';
-import { NODE_STATUS, type NodeStatus, type TopicNode } from '../types';
+import {
+  NODE_STATUS,
+  type NodeStatus,
+  type OpenQuestion,
+  type TopicNode,
+} from '../types';
 import { getHiddenIds } from '../lib/tree';
 import { IconEyeOff, IconX } from './icons';
 
@@ -17,6 +22,7 @@ export function Sidebar() {
   const recentNodeIds = useStore((s) => s.recentNodeIds);
   const togglePin = useStore((s) => s.togglePin);
   const openNodeMenu = useStore((s) => s.openNodeMenu);
+  const focusNodeAt = useStore((s) => s.focusNodeAt);
   const showAllHidden = useStore((s) => s.showAllHidden);
   const unhideNode = useStore((s) => s.unhideNode);
 
@@ -68,6 +74,16 @@ export function Sidebar() {
   const pinnedNodes = useMemo(() => projectNodes.filter((n) => n.pinned), [projectNodes]);
 
   const hiddenIds = useMemo(() => getHiddenIds(projectNodes), [projectNodes]);
+
+  const openQuestions = useMemo(() => {
+    const list: { node: TopicNode; question: OpenQuestion }[] = [];
+    for (const n of projectNodes) {
+      for (const q of n.openQuestions ?? []) {
+        if (!q.resolved) list.push({ node: n, question: q });
+      }
+    }
+    return list;
+  }, [projectNodes]);
 
   const openMenuAt = (event: React.MouseEvent, nodeId: string) => {
     event.preventDefault();
@@ -162,6 +178,52 @@ export function Sidebar() {
                 onTogglePin={() => togglePin(n.id)}
                 onContextMenu={(e) => openMenuAt(e, n.id)}
               />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {openQuestions.length > 0 && (
+        <div className="px-3 pt-2.5 pb-1">
+          <div
+            className="mb-1 text-[10px] tracking-widest uppercase"
+            style={{ color: 'var(--faint)' }}
+          >
+            待解决问题 · {openQuestions.length}
+          </div>
+          <div className="flex flex-col">
+            {openQuestions.slice(0, 8).map(({ node: n, question: q }) => (
+              <button
+                key={q.id}
+                className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left transition-colors"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background =
+                    'color-mix(in srgb, var(--text) 6%, transparent)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                onClick={() => focusNodeAt(n.id, q.sourceMessageId)}
+              >
+                <span
+                  className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: 'var(--accent)' }}
+                />
+                <span className="min-w-0 flex-1">
+                  <span
+                    className="block truncate text-[12.5px]"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    {q.text}
+                  </span>
+                  <span
+                    className="block truncate text-[10.5px]"
+                    style={{ color: 'var(--faint)' }}
+                  >
+                    {n.title}
+                  </span>
+                </span>
+              </button>
             ))}
           </div>
         </div>

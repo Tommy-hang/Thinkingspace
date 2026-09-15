@@ -10,6 +10,7 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
   const status = NODE_STATUS[topic.status];
   const turns = Math.ceil(messageCount / 2);
   const intent = intentLabel(topic.intent);
+  const openCount = (topic.openQuestions ?? []).filter((q) => !q.resolved).length;
 
   const openNodeMenu = useStore((s) => s.openNodeMenu);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
@@ -108,6 +109,16 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
           <IconBranch width={11} height={11} />
           {branchCount}
         </span>
+
+        {openCount > 0 && (
+          <span
+            className="inline-flex items-center gap-0.5"
+            style={{ color: 'var(--accent)' }}
+            title="待解决问题"
+          >
+            ? {openCount}
+          </span>
+        )}
 
         {topic.collapsed && hiddenCount > 0 && (
           <button

@@ -19,21 +19,24 @@ import {
   IconGlobe,
   IconLink,
   IconPin,
+  IconPlus,
   IconRefresh,
   IconSend,
   IconSpark,
   IconStop,
   IconTrash,
+  IconX,
 } from './icons';
 import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
 import { buildNodeUrl, copyText } from '../lib/link';
+import { extractMentions, firstSentence } from '../lib/mention';
 import {
   INTENT_META,
   INTENT_ORDER,
   buildIntentQuestion,
   intentLabel,
 } from '../lib/branchIntent';
-import type { BranchIntent } from '../types';
+import type { BranchIntent, BranchSuggestion } from '../types';
 
 interface FocusViewProps {
   nodeId: string;
@@ -188,6 +191,13 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const focusNode = useStore((s) => s.focusNode);
   const useModel = useStore((s) => s.useModel);
   const togglePin = useStore((s) => s.togglePin);
+  const refreshSummary = useStore((s) => s.refreshSummary);
+  const mergeInsights = useStore((s) => s.mergeInsights);
+  const generateSuggestionsFor = useStore((s) => s.generateSuggestionsFor);
+  const setSuggestions = useStore((s) => s.setSuggestions);
+  const addOpenQuestion = useStore((s) => s.addOpenQuestion);
+  const toggleOpenQuestion = useStore((s) => s.toggleOpenQuestion);
+  const removeOpenQuestion = useStore((s) => s.removeOpenQuestion);
   const thinking = useStore((s) => s.settings.thinking);
   const search = useStore((s) => s.settings.search);
   const searchingNodeId = useStore((s) => s.searchingNodeId);
@@ -202,7 +212,11 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [understandingOpen, setUnderstandingOpen] = useState(true);
+  const [questionDraft, setQuestionDraft] = useState('');
+  const [busy, setBusy] = useState<null | 'summary' | 'insight' | 'suggest'>(null);
   const pendingDraft = useRef<string | null>(null);
+  const questionInputRef = useRef<HTMLInputElement>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
@@ -231,6 +245,24 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     const list = nodeMessages.filter((m) => m.role === 'assistant');
     return list.length ? list[list.length - 1].id : null;
   }, [nodeMessages]);
+
+  const childNodes = useMemo(() => nodes.filter((n) => n.parentId === nodeId), [nodes, nodeId]);
+  const openQuestions = node?.openQuestions ?? [];
+  const unresolvedCount = openQuestions.filter((q) => !q.resolved).length;
+
+  const mentionQuery = useMemo(() => {
+    const match = /@([^\s@]*)$/.exec(input);
+    return match ? match[1] : null;
+  }, [input]);
+
+  const mentionCandidates = useMemo(() => {
+    if (mentionQuery === null || !node) return [];
+    const q = mentionQuery.toLowerCase();
+    return nodes
+      .filter((n) => n.projectId === node.projectId && n.id !== node.id)
+      .filter((n) => !q || n.title.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionQuery, nodes, node]);
 
   useEffect(() => {
     const t = setTimeout(() => setPhase('open'), 20);
@@ -305,8 +337,72 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const submit = () => {
     const text = input.trim();
     if (!text || streaming) return;
+    const projectNodes = node ? nodes.filter((n) => n.projectId === node.projectId) : [];
+    const mentions = extractMentions(text, projectNodes);
     setInput('');
-    void sendMessage(nodeId, text);
+    void sendMessage(nodeId, text, mentions);
+  };
+
+  const applyMention = (title: string) => {
+    setInput((prev) => prev.replace(/@([^\s@]*)$/, `@${title} `));
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleRefreshSummary = async () => {
+    setBusy('summary');
+    try {
+      await refreshSummary(nodeId);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleMerge = async () => {
+    setBusy('insight');
+    try {
+      await mergeInsights(nodeId);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleSuggest = async () => {
+    setBusy('suggest');
+    try {
+      await generateSuggestionsFor(nodeId);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const submitQuestion = () => {
+    const text = questionDraft.trim();
+    if (!text) return;
+    addOpenQuestion(nodeId, text);
+    setQuestionDraft('');
+  };
+
+  const markAsQuestion = (content: string) => {
+    setUnderstandingOpen(true);
+    setQuestionDraft(firstSentence(content));
+    setTimeout(() => questionInputRef.current?.focus(), 60);
+  };
+
+  const acceptSuggestion = (suggestion: BranchSuggestion, sourceMessageId: string) => {
+    const id = createBranch(
+      nodeId,
+      {
+        sourceNodeId: nodeId,
+        sourceMessageId,
+        anchorText: suggestion.label,
+        parentContextSummary: node?.summary,
+      },
+      suggestion.label,
+      suggestion.intent,
+    );
+    if (!id) return;
+    focusNode(id);
+    void sendMessage(id, suggestion.question);
   };
 
   const startEdit = (message: Message) => {
@@ -511,6 +607,20 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               <IconLink width={15} height={15} />
             </button>
 
+            {childNodes.length >= 2 && (
+              <button
+                className="btn btn-outline"
+                title="把子分支的探索综合成更高层的理解"
+                disabled={busy === 'insight'}
+                onClick={() => void handleMerge()}
+              >
+                <IconSpark width={14} height={14} />
+                <span className="hidden md:inline">
+                  {busy === 'insight' ? '综合中…' : node.insight ? '刷新理解' : '综合理解'}
+                </span>
+              </button>
+            )}
+
             <button
               className="btn btn-outline"
               title="新建一个子分支"
@@ -597,6 +707,140 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               )}
               {node.pinned && <span className="chip">已收藏</span>}
               <span className="chip">{Math.ceil(nodeMessages.length / 2)} 轮</span>
+              {unresolvedCount > 0 && <span className="chip">待解决 {unresolvedCount}</span>}
+            </div>
+
+            <div className="panel mb-4 rounded-xl">
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2 text-[12px]"
+                style={{ color: 'var(--muted)' }}
+                onClick={() => setUnderstandingOpen((o) => !o)}
+              >
+                <IconSpark width={13} height={13} />
+                <span>当前理解</span>
+                {node.summaryUpdatedAt ? (
+                  <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
+                    {new Date(node.summaryUpdatedAt).toLocaleString('zh-CN', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                ) : null}
+                <span className="ml-auto text-[11px]" style={{ color: 'var(--faint)' }}>
+                  {understandingOpen ? '收起' : '展开'}
+                </span>
+              </button>
+
+              {understandingOpen && (
+                <div className="px-3 pb-3">
+                  {node.summary ? (
+                    <p className="ts-prose text-[13px]">{node.summary}</p>
+                  ) : (
+                    <p className="text-[12.5px]" style={{ color: 'var(--faint)' }}>
+                      还没有「当前理解」。聊过几轮后，点下面的按钮生成。
+                    </p>
+                  )}
+
+                  <button
+                    className="btn btn-ghost mt-2 !px-2 !py-0.5 !text-[11.5px]"
+                    disabled={busy === 'summary' || nodeMessages.length === 0}
+                    style={{ opacity: nodeMessages.length === 0 ? 0.4 : 1 }}
+                    onClick={() => void handleRefreshSummary()}
+                  >
+                    <IconRefresh width={12} height={12} />
+                    {busy === 'summary' ? '生成中…' : '更新理解'}
+                  </button>
+
+                  {node.insight && (
+                    <div
+                      className="mt-3 rounded-lg p-2.5"
+                      style={{
+                        background: 'var(--accent-soft)',
+                        border: '1px solid color-mix(in srgb, var(--accent) 18%, transparent)',
+                      }}
+                    >
+                      <div
+                        className="mb-1 flex items-center gap-1.5 text-[11px] font-medium"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        <IconSpark width={11} height={11} />
+                        综合理解（由 {childNodes.length} 个子分支收敛而来）
+                      </div>
+                      <p className="ts-prose text-[12.5px]">{node.insight}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-3" style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                    <div className="mb-1.5 text-[11px] font-medium" style={{ color: 'var(--muted)' }}>
+                      待解决问题 · {unresolvedCount}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      {openQuestions.length === 0 && (
+                        <p className="text-[12px]" style={{ color: 'var(--faint)' }}>
+                          把还没搞懂的问题记在这里，之后可以从左侧「待解决问题」找回。
+                        </p>
+                      )}
+                      {openQuestions.map((q) => (
+                        <div key={q.id} className="group/q flex items-start gap-2">
+                          <button
+                            className="mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px]"
+                            style={{
+                              border: `1px solid ${
+                                q.resolved ? 'var(--accent)' : 'var(--border-strong)'
+                              }`,
+                              background: q.resolved ? 'var(--accent)' : 'transparent',
+                            }}
+                            title={q.resolved ? '标记为未解决' : '标记为已解决'}
+                            onClick={() => toggleOpenQuestion(nodeId, q.id)}
+                          >
+                            {q.resolved && <IconCheck width={10} height={10} />}
+                          </button>
+                          <span
+                            className="flex-1 text-[12.5px] leading-relaxed"
+                            style={{
+                              color: q.resolved ? 'var(--faint)' : 'var(--text)',
+                              textDecoration: q.resolved ? 'line-through' : 'none',
+                            }}
+                          >
+                            {q.text}
+                          </span>
+                          <button
+                            className="shrink-0 opacity-0 transition-opacity group-hover/q:opacity-100"
+                            style={{ color: 'var(--faint)' }}
+                            title="删除"
+                            onClick={() => removeOpenQuestion(nodeId, q.id)}
+                          >
+                            <IconX width={12} height={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-2 flex gap-1.5">
+                      <input
+                        ref={questionInputRef}
+                        className="input !py-1 !text-[12px]"
+                        placeholder="添加一个还没解决的问题…"
+                        value={questionDraft}
+                        onChange={(e) => setQuestionDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') submitQuestion();
+                        }}
+                      />
+                      <button
+                        className="btn btn-outline shrink-0 !px-2 !py-1"
+                        title="添加"
+                        onClick={submitQuestion}
+                      >
+                        <IconPlus width={13} height={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {node.anchor?.anchorText && (
@@ -629,6 +873,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                 {nodeMessages.map((m, i) => {
                   const isUser = m.role === 'user';
                   const isEditing = editingMessageId === m.id;
+                  const isLastAssistant = !isUser && m.id === lastAssistantId;
                   const canEdit = isUser && m.id === lastUserId && !streaming;
                   const canRegenerate =
                     !isUser && m.id === lastAssistantId && !m.pending && !streaming;
@@ -696,7 +941,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                         />
                       )}
 
-                      {(canEdit || canRegenerate) && !isEditing && (
+                      {!isEditing && (
                         <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
                           {canEdit && (
                             <button
@@ -716,8 +961,67 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                               重新生成
                             </button>
                           )}
+                          {m.content.trim().length > 0 && (
+                            <button
+                              className="btn btn-ghost !px-2 !py-0.5 !text-[11px]"
+                              title="把这条内容记成一个待解决问题"
+                              onClick={() => markAsQuestion(m.content)}
+                            >
+                              <IconPlus width={12} height={12} />
+                              记为问题
+                            </button>
+                          )}
                         </div>
                       )}
+
+                      {isLastAssistant &&
+                        !m.pending &&
+                        node.suggestionsFor === m.id &&
+                        (node.suggestions?.length ?? 0) > 0 && (
+                          <div
+                            className="mt-2 rounded-xl p-3"
+                            style={{
+                              maxWidth: 'min(760px, 92%)',
+                              border: '1px dashed var(--border-strong)',
+                            }}
+                          >
+                            <div
+                              className="mb-2 flex items-center gap-2 text-[11px]"
+                              style={{ color: 'var(--muted)' }}
+                            >
+                              <IconSpark width={12} height={12} />
+                              可能的探索方向
+                              <button
+                                className="btn btn-ghost ml-auto !px-1.5 !py-0 !text-[11px]"
+                                disabled={busy === 'suggest'}
+                                onClick={() => void handleSuggest()}
+                              >
+                                {busy === 'suggest' ? '生成中…' : '换一批'}
+                              </button>
+                              <button
+                                className="btn btn-ghost !px-1.5 !py-0 !text-[11px]"
+                                onClick={() => setSuggestions(nodeId, '', [])}
+                              >
+                                忽略
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {node.suggestions?.map((s, i) => (
+                                <button
+                                  key={`${s.intent}-${i}`}
+                                  className="btn btn-outline !px-2.5 !py-1 !text-[12px]"
+                                  title={s.question}
+                                  onClick={() => acceptSuggestion(s, m.id)}
+                                >
+                                  <span className="chip !px-1.5 !py-0 !text-[10px]">
+                                    {INTENT_META[s.intent].label}
+                                  </span>
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   );
                 })}
@@ -900,6 +1204,31 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               </Popover>
             </div>
 
+            {mentionCandidates.length > 0 && (
+              <div className="panel mb-2 rounded-xl p-1.5">
+                <div
+                  className="px-2 pb-1 text-[10px] tracking-widest uppercase"
+                  style={{ color: 'var(--faint)' }}
+                >
+                  引用已有主题（只发送它的「当前理解」）
+                </div>
+                {mentionCandidates.map((n) => (
+                  <MenuItem key={n.id} onClick={() => applyMention(n.title)}>
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: NODE_STATUS[n.status].color }}
+                    />
+                    <span className="flex-1 truncate">{n.title}</span>
+                    {(n.openQuestions ?? []).filter((q) => !q.resolved).length > 0 && (
+                      <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
+                        {(n.openQuestions ?? []).filter((q) => !q.resolved).length} 待解决
+                      </span>
+                    )}
+                  </MenuItem>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -940,6 +1269,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               <span>Enter 发送 / Shift+Enter 换行</span>
               <span>·</span>
               <span>选中文字可 解释 / 追问 / 分支</span>
+              <span>·</span>
+              <span>输入 @ 可引用其它主题</span>
             </div>
           </div>
         </div>
