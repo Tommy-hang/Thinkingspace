@@ -120,6 +120,45 @@ try {
     check('Focus View 模型切换器', focusHtml.includes('离线演示') || focusHtml.includes('mock'));
   }
 
+  // --- 本轮新增的纯逻辑 ---
+  const treeMod = await server.ssrLoadModule('/src/lib/tree.ts');
+  const intentMod = await server.ssrLoadModule('/src/lib/branchIntent.ts');
+  const exportMod = await server.ssrLoadModule('/src/lib/branchExport.ts');
+  const linkMod = await server.ssrLoadModule('/src/lib/link.ts');
+
+  const t = (id, parentId, extra = {}) => ({
+    id,
+    projectId: 'p1',
+    parentId,
+    title: id,
+    summary: '',
+    position: { x: 0, y: 0 },
+    status: 'active',
+    createdAt: 0,
+    updatedAt: 0,
+    ...extra,
+  });
+
+  const demoNodes = [t('A', null), t('B', 'A'), t('C', 'B'), t('D', 'B'), t('F', 'A')];
+
+  check('getAncestors 返回完整祖先链', treeMod.getAncestors(demoNodes, 'C').map((n) => n.id).join('>') === 'A>B>C');
+  check('getDescendantIds 统计后代', treeMod.getDescendantIds(demoNodes, 'B').size === 2);
+
+  const collapsedNodes = demoNodes.map((n) => (n.id === 'B' ? { ...n, collapsed: true } : n));
+  const visible = treeMod.getVisibleNodes(collapsedNodes).map((n) => n.id).sort().join(',');
+  check('折叠后隐藏后代', visible === 'A,B,F');
+
+  const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
+  check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
+
+  check(
+    'Branch Intent 生成问题',
+    intentMod.buildIntentQuestion('counterexample', 'X').includes('反例'),
+  );
+  check('intent 映射到边类型', intentMod.intentToEdgeType('counterexample') === 'contrast');
+  check('链接解析', linkMod.parseNodeHash('#/p/p1/n/n2')?.nodeId === 'n2');
+  check('非法链接安全返回', linkMod.parseNodeHash('') === null);
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

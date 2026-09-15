@@ -14,14 +14,18 @@ import {
   IconBranch,
   IconCheck,
   IconChevronLeft,
+  IconDownload,
+  IconEdit,
   IconGlobe,
   IconLink,
   IconPin,
+  IconRefresh,
   IconSend,
   IconSpark,
   IconStop,
   IconTrash,
 } from './icons';
+import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
 import { buildNodeUrl, copyText } from '../lib/link';
 import {
   INTENT_META,
@@ -174,6 +178,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const updateNode = useStore((s) => s.updateNode);
   const deleteNode = useStore((s) => s.deleteNode);
   const sendMessage = useStore((s) => s.sendMessage);
+  const regenerate = useStore((s) => s.regenerate);
+  const editUserMessage = useStore((s) => s.editUserMessage);
   const stopStreaming = useStore((s) => s.stopStreaming);
   const createBranch = useStore((s) => s.createBranch);
   const focusNode = useStore((s) => s.focusNode);
@@ -190,6 +196,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const [input, setInput] = useState('');
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [selectionMode, setSelectionMode] = useState<'actions' | 'intent'>('actions');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
   const pendingDraft = useRef<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -210,6 +218,16 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const provider = settings.providers.find((p) => p.id === settings.activeProviderId);
   const streaming = streamingNodeId === nodeId;
 
+  const lastUserId = useMemo(() => {
+    const users = nodeMessages.filter((m) => m.role === 'user');
+    return users.length ? users[users.length - 1].id : null;
+  }, [nodeMessages]);
+
+  const lastAssistantId = useMemo(() => {
+    const list = nodeMessages.filter((m) => m.role === 'assistant');
+    return list.length ? list[list.length - 1].id : null;
+  }, [nodeMessages]);
+
   useEffect(() => {
     const t = setTimeout(() => setPhase('open'), 20);
     return () => clearTimeout(t);
@@ -218,6 +236,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   useEffect(() => {
     setSelection(null);
     setSelectionMode('actions');
+    setEditingMessageId(null);
     setInput(pendingDraft.current ?? '');
     pendingDraft.current = null;
     const el = scrollRef.current;
@@ -263,6 +282,25 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     if (!text || streaming) return;
     setInput('');
     void sendMessage(nodeId, text);
+  };
+
+  const startEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditDraft(message.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditDraft('');
+  };
+
+  const saveEdit = () => {
+    const id = editingMessageId;
+    const text = editDraft.trim();
+    if (!id || !text) return;
+    setEditingMessageId(null);
+    setEditDraft('');
+    void editUserMessage(nodeId, id, text);
   };
 
   const handleMouseUp = () => {
@@ -464,6 +502,23 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </button>
 
             <button
+              className="btn btn-ghost px-2"
+              title="把当前主题及其所有子分支导出为 Markdown"
+              onClick={() => {
+                try {
+                  downloadMarkdown(
+                    exportBranchMarkdown(nodes, messages, node.id),
+                    `${node.title}-分支`,
+                  );
+                } catch (err) {
+                  alert(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+                }
+              }}
+            >
+              <IconDownload width={15} height={15} />
+            </button>
+
+            <button
               className="btn btn-ghost"
               title="删除当前主题及其所有分支"
               onClick={() => {
@@ -551,18 +606,93 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {nodeMessages.map((m, i) => (
-                  <MessageBubble
-                    key={m.id}
-                    message={m}
-                    searching={
-                      searchingNodeId === nodeId &&
-                      i === nodeMessages.length - 1 &&
-                      m.role === 'assistant' &&
-                      !m.content
-                    }
-                  />
-                ))}
+                {nodeMessages.map((m, i) => {
+                  const isUser = m.role === 'user';
+                  const isEditing = editingMessageId === m.id;
+                  const canEdit = isUser && m.id === lastUserId && !streaming;
+                  const canRegenerate =
+                    !isUser && m.id === lastAssistantId && !m.pending && !streaming;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="group/msg flex flex-col"
+                      style={{ alignItems: isUser ? 'flex-end' : 'flex-start' }}
+                    >
+                      {isEditing ? (
+                        <div
+                          className="w-full rounded-2xl p-3"
+                          style={{
+                            maxWidth: 'min(760px, 92%)',
+                            background: 'var(--panel)',
+                            border: '1px solid var(--accent)',
+                          }}
+                        >
+                          <textarea
+                            className="input ts-scroll resize-none !text-[13.5px]"
+                            rows={3}
+                            autoFocus
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                saveEdit();
+                              }
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                          />
+                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[11px]" style={{ color: 'var(--faint)' }}>
+                              保存后会重新生成回答，其后的对话会被替换
+                            </span>
+                            <div className="flex gap-2">
+                              <button className="btn btn-ghost !text-[12px]" onClick={cancelEdit}>
+                                取消
+                              </button>
+                              <button className="btn btn-primary !text-[12px]" onClick={saveEdit}>
+                                保存并重新生成
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <MessageBubble
+                          message={m}
+                          searching={
+                            searchingNodeId === nodeId &&
+                            i === nodeMessages.length - 1 &&
+                            m.role === 'assistant' &&
+                            !m.content
+                          }
+                        />
+                      )}
+
+                      {(canEdit || canRegenerate) && !isEditing && (
+                        <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+                          {canEdit && (
+                            <button
+                              className="btn btn-ghost !px-2 !py-0.5 !text-[11px]"
+                              onClick={() => startEdit(m)}
+                            >
+                              <IconEdit width={12} height={12} />
+                              编辑
+                            </button>
+                          )}
+                          {canRegenerate && (
+                            <button
+                              className="btn btn-ghost !px-2 !py-0.5 !text-[11px]"
+                              onClick={() => void regenerate(nodeId)}
+                            >
+                              <IconRefresh width={12} height={12} />
+                              重新生成
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="h-6" />

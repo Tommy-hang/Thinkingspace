@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { MenuItem } from './Popover';
 import { buildNodeUrl, copyText } from '../lib/link';
+import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
 import {
   IconChevronDown,
   IconChevronRight,
+  IconDownload,
   IconLink,
   IconPin,
   IconTrash,
@@ -18,6 +20,7 @@ interface NodeMenuProps {
 /** 地图节点的次级操作菜单（避免在卡片上堆砌按钮） */
 export function NodeMenu({ nodeId, onClose }: NodeMenuProps) {
   const nodes = useStore((s) => s.nodes);
+  const messages = useStore((s) => s.messages);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
   const togglePin = useStore((s) => s.togglePin);
   const deleteNode = useStore((s) => s.deleteNode);
@@ -80,6 +83,23 @@ export function NodeMenu({ nodeId, onClose }: NodeMenuProps) {
       >
         <IconLink width={14} height={14} />
         <span className="flex-1">复制链接</span>
+      </MenuItem>
+
+      <MenuItem
+        onClick={() => {
+          try {
+            downloadMarkdown(
+              exportBranchMarkdown(nodes, messages, node.id),
+              `${node.title}-分支`,
+            );
+          } catch (err) {
+            alert(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+          }
+          openNodeMenu(null);
+        }}
+      >
+        <IconDownload width={14} height={14} />
+        <span className="flex-1">导出为 Markdown</span>
       </MenuItem>
 
       {hasChildren && (
