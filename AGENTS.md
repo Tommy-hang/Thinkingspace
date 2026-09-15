@@ -60,7 +60,10 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
 - **V0.1 交互原型**：Map / Topic Card / Focus View / Branch / 本地保存 ✅
 - **V0.2 AI 原型**：Provider 层 / DeepSeek 流式 / Context Builder / Branch Context ✅
 - **V0.3 个人日常使用**：项目管理 / 搜索 / 节点状态 / 布局 / 导入导出 / 设置 ✅
-- **V0.4 云端**：Supabase / Auth / 云同步 / RLS（未开始）
+  - **V0.3.1**：Markdown / KaTeX 渲染、V4 模型与思考模式、联网搜索 ✅
+  - **V0.3.2**：GitHub Pages 自动部署 ✅
+  - **V0.3.3**：撤销重做 / 子树折叠 / 思考路径高亮 / 最近 / 收藏 / 主题直链 / 分支意图 / Markdown 导出 / 编辑重生成 / 悬停预览 ✅
+- **V0.4 云端**：Supabase / Auth / 云同步 / RLS（未开始，版本号保留给登录系统）
 - **V0.5 公开测试**：BYOK / Provider 管理 / 限流 / 监控（未开始）
 
 ## 安全规则
