@@ -7,6 +7,7 @@ import type {
   Settings,
   TopicNode,
 } from '../../types';
+import { migrateOpenQuestions } from '../storage';
 import { getSupabase } from './client';
 
 /** 一个项目的全部内容（对应数据库里的 content 字段） */
@@ -58,14 +59,34 @@ export async function pullAll(): Promise<{
 
   if (projectsRes.error) throw new Error(projectsRes.error.message);
 
-  const projects: RemoteProject[] = (projectsRes.data ?? []).map((row) => ({
-    id: String(row.id),
-    title: String(row.title ?? ''),
-    summary: String(row.summary ?? ''),
-    revision: Number(row.revision ?? 1),
-    updatedAt: Date.parse(String(row.updated_at)) || Date.now(),
-    content: parseContent(row.content),
-  }));
+  // 云端数据同样要经过迁移，保证旧版本存下的内容能被新版本正确读取
+  const projects: RemoteProject[] = (projectsRes.data ?? []).map((row) => {
+    const content = parseContent(row.content);
+    const draft: Project = {
+      id: String(row.id),
+      title: String(row.title ?? ''),
+      summary: String(row.summary ?? ''),
+      createdAt: content.createdAt,
+      updatedAt: Date.parse(String(row.updated_at)) || Date.now(),
+      openQuestions: content.openQuestions,
+      knowledgeMap: content.knowledgeMap,
+    };
+    const migrated = migrateOpenQuestions([draft], content.nodes);
+    const project = migrated.projects[0] ?? draft;
+
+    return {
+      id: project.id,
+      title: project.title,
+      summary: project.summary,
+      revision: Number(row.revision ?? 1),
+      updatedAt: project.updatedAt,
+      content: {
+        ...content,
+        nodes: migrated.nodes,
+        openQuestions: project.openQuestions,
+      },
+    };
+  });
 
   const settings =
     settingsRes.data && settingsRes.data.settings
