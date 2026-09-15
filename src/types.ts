@@ -82,8 +82,12 @@ export interface TopicNode {
   anchor?: BranchAnchor;
   /** 用户标记为「重要」（独立于认知状态） */
   pinned?: boolean;
-  /** 仅影响地图显示，不改变知识结构 */
+  /** 折叠：本节点仍显示，隐藏其所有后代 */
   collapsed?: boolean;
+  /** 隐藏：本节点及其后代都不显示（仅影响地图，不删除数据） */
+  hidden?: boolean;
+  /** 标题是否已被用户手动固定（true 时不再自动生成标题） */
+  titleLocked?: boolean;
   /** 该分支诞生时的认知动作 */
   intent?: BranchIntent;
   createdAt: number;

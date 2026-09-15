@@ -7,6 +7,7 @@ import {
   IconBranch,
   IconDownload,
   IconFolder,
+  IconHelp,
   IconLayout,
   IconMoon,
   IconPlus,
@@ -38,6 +39,7 @@ export function TopBar() {
   const applyAutoLayout = useStore((s) => s.applyAutoLayout);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -259,6 +261,9 @@ export function TopBar() {
           }
         >
           {settings.theme === 'dark' ? <IconSun /> : <IconMoon />}
+        </button>
+        <button className="btn btn-ghost" onClick={() => setHelpOpen(true)} title="使用说明">
+          <IconHelp />
         </button>
         <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)} title="设置">
           <IconSettings />

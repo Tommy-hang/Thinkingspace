@@ -10,7 +10,6 @@ import {
 } from '@xyflow/react';
 import { useStore } from '../store/store';
 import { TopicCardNode } from './TopicCardNode';
-import { NodeMenu } from './NodeMenu';
 import type { TopicFlowEdge, TopicFlowNode } from '../types';
 import { EmptyState } from './EmptyState';
 import { getAncestors, getDescendantIds, getVisibleNodes } from '../lib/tree';
@@ -42,7 +41,6 @@ export function MapView({ onOpenNode }: MapViewProps) {
   const beginNodeDrag = useStore((s) => s.beginNodeDrag);
   const endNodeDrag = useStore((s) => s.endNodeDrag);
   const openNodeMenu = useStore((s) => s.openNodeMenu);
-  const nodeMenuId = useStore((s) => s.nodeMenuId);
 
   const project = projects.find((p) => p.id === activeProjectId);
   const projectNodes = useMemo(
@@ -254,6 +252,16 @@ export function MapView({ onOpenNode }: MapViewProps) {
           dragging.current = false;
           endNodeDrag(node.id);
         }}
+        onNodeContextMenu={(event, node) => {
+          event.preventDefault();
+          cancelPreview();
+          selectNode(node.id);
+          openNodeMenu(node.id, { x: event.clientX, y: event.clientY });
+        }}
+        onPaneContextMenu={(event) => {
+          event.preventDefault();
+          openNodeMenu(null);
+        }}
         onNodeMouseEnter={handleNodeMouseEnter}
         onNodeMouseLeave={handleNodeMouseLeave}
         minZoom={0.15}
@@ -335,8 +343,6 @@ export function MapView({ onOpenNode }: MapViewProps) {
           </div>
         </div>
       )}
-
-      {nodeMenuId && <NodeMenu nodeId={nodeMenuId} onClose={() => openNodeMenu(null)} />}
 
       {projectNodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

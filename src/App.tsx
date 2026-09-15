@@ -7,6 +7,8 @@ import { MapView } from './components/MapView';
 import { FocusView } from './components/FocusView';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { HelpPanel } from './components/HelpPanel';
+import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
 
 export default function App() {
@@ -120,8 +122,10 @@ export default function App() {
         />
       )}
 
+      <NodeMenu onClose={() => useStore.getState().openNodeMenu(null)} />
       <SearchPanel />
       <SettingsPanel />
+      <HelpPanel />
     </div>
   );
 }

@@ -189,6 +189,29 @@ export const IconRefresh = (p: P) => (
   </svg>
 );
 
+export const IconEye = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
+    <circle cx="12" cy="12" r="2.6" />
+  </svg>
+);
+
+export const IconEyeOff = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 6.1A9.7 9.7 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-2.9 3.6M6.5 7.9C3.9 9.5 2 12 2 12s3.6 6 10 6a9.9 9.9 0 0 0 4-.8" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </svg>
+);
+
+export const IconHelp = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.2a2.6 2.6 0 1 1 3.2 2.6c-.6.2-.9.7-.9 1.4v.4" />
+    <path d="M12 17h.01" />
+  </svg>
+);
+
 export const IconGlobe = (p: P) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="9" />

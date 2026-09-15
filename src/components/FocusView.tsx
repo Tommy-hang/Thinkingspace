@@ -176,6 +176,9 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const settings = useStore((s) => s.settings);
   const streamingNodeId = useStore((s) => s.streamingNodeId);
   const updateNode = useStore((s) => s.updateNode);
+  const renameNode = useStore((s) => s.renameNode);
+  const focusMessageId = useStore((s) => s.focusMessageId);
+  const clearFocusMessage = useStore((s) => s.clearFocusMessage);
   const deleteNode = useStore((s) => s.deleteNode);
   const sendMessage = useStore((s) => s.sendMessage);
   const regenerate = useStore((s) => s.regenerate);
@@ -198,6 +201,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const [selectionMode, setSelectionMode] = useState<'actions' | 'intent'>('actions');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
+  const [pulseId, setPulseId] = useState<string | null>(null);
   const pendingDraft = useRef<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -259,6 +263,27 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input]);
+
+  // 从「查看所有提问」跳转过来时，滚动并高亮对应的那条消息
+  useEffect(() => {
+    if (!focusMessageId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-message-id="${focusMessageId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setPulseId(focusMessageId);
+        setTimeout(() => setPulseId(null), 1800);
+      }
+      clearFocusMessage();
+    }, 340);
+    return () => clearTimeout(timer);
+  }, [focusMessageId, nodeId, clearFocusMessage]);
+
+  const saveTitle = () => {
+    const next = titleDraft.trim();
+    if (next) renameNode(nodeId, next);
+    setEditingTitle(false);
+  };
 
   const close = useCallback(() => {
     setPhase('exit');
@@ -545,15 +570,10 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                 autoFocus
                 value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={() => {
-                  updateNode(nodeId, { title: titleDraft.trim() || '未命名主题' });
-                  setEditingTitle(false);
-                }}
+                onBlur={saveTitle}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    updateNode(nodeId, { title: titleDraft.trim() || '未命名主题' });
-                    setEditingTitle(false);
-                  }
+                  if (e.key === 'Enter') saveTitle();
+                  if (e.key === 'Escape') setEditingTitle(false);
                 }}
               />
             ) : (
@@ -616,8 +636,16 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                   return (
                     <div
                       key={m.id}
-                      className="group/msg flex flex-col"
-                      style={{ alignItems: isUser ? 'flex-end' : 'flex-start' }}
+                      data-message-id={m.id}
+                      className="group/msg flex flex-col rounded-2xl"
+                      style={{
+                        alignItems: isUser ? 'flex-end' : 'flex-start',
+                        boxShadow:
+                          pulseId === m.id
+                            ? '0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent)'
+                            : undefined,
+                        transition: 'box-shadow 320ms ease',
+                      }}
                     >
                       {isEditing ? (
                         <div

@@ -148,6 +148,24 @@ try {
   const visible = treeMod.getVisibleNodes(collapsedNodes).map((n) => n.id).sort().join(',');
   check('折叠后隐藏后代', visible === 'A,B,F');
 
+  const hiddenNodes = demoNodes.map((n) => (n.id === 'B' ? { ...n, hidden: true } : n));
+  check('隐藏自身连带隐藏后代', [...treeMod.getHiddenIds(hiddenNodes)].sort().join(',') === 'B,C,D');
+  check(
+    '隐藏后可见节点',
+    treeMod.getVisibleNodes(hiddenNodes).map((n) => n.id).sort().join(',') === 'A,F',
+  );
+
+  const titleMod = await server.ssrLoadModule('/src/lib/title.ts');
+  check(
+    'localTitle 提取知识点标题',
+    titleMod.localTitle('问题', '### 注意力分数的缩放\n\n正文') === '注意力分数的缩放',
+  );
+  check(
+    'localTitle 跳过通用小标题',
+    titleMod.localTitle('问题', '### 你问的是\n\n内容\n\n### QKV 的分工\n\n正文') === 'QKV 的分工',
+  );
+  check('localSummary 去掉换行', !titleMod.localSummary('第一行\n\n第二行').includes('\n'));
+
   const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
   check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
 

@@ -48,7 +48,7 @@ export function getDescendantIds(nodes: TopicNode[], rootId: string): Set<string
   return ids;
 }
 
-/** 因祖先处于折叠状态而不可见的节点 id */
+/** 因祖先处于折叠状态而不可见的节点 id（不含被折叠的节点自身） */
 export function getCollapsedHiddenIds(nodes: TopicNode[]): Set<string> {
   const children = buildChildrenMap(nodes);
   const hidden = new Set<string>();
@@ -67,10 +67,26 @@ export function getCollapsedHiddenIds(nodes: TopicNode[]): Set<string> {
   return hidden;
 }
 
-/** 地图上当前应该显示的节点 */
+/** 因「隐藏自身」而不可见的节点 id（含被隐藏的节点自身及其所有后代） */
+export function getHiddenIds(nodes: TopicNode[]): Set<string> {
+  const children = buildChildrenMap(nodes);
+  const hidden = new Set<string>();
+  const stack: string[] = nodes.filter((n) => n.hidden).map((n) => n.id);
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (hidden.has(id)) continue;
+    hidden.add(id);
+    for (const child of children.get(id) ?? []) stack.push(child.id);
+  }
+  return hidden;
+}
+
+/** 地图上当前应该显示的节点（排除折叠后代与被隐藏的子树） */
 export function getVisibleNodes(nodes: TopicNode[]): TopicNode[] {
-  const hidden = getCollapsedHiddenIds(nodes);
-  return hidden.size === 0 ? nodes : nodes.filter((n) => !hidden.has(n.id));
+  const hidden = getHiddenIds(nodes);
+  const collapsed = getCollapsedHiddenIds(nodes);
+  if (hidden.size === 0 && collapsed.size === 0) return nodes;
+  return nodes.filter((n) => !hidden.has(n.id) && !collapsed.has(n.id));
 }
 
 export function hasChildren(nodes: TopicNode[], nodeId: string): boolean {

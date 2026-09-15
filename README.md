@@ -93,5 +93,6 @@ React 19 · TypeScript · Vite · Tailwind CSS v4 · @xyflow/react · zustand
   - **V0.3.1** ✅ Markdown / KaTeX 渲染、V4 模型与思考模式、联网搜索
   - **V0.3.2** ✅ GitHub Pages 自动部署
   - **V0.3.3** ✅ 撤销重做 / 子树折叠 / 思考路径高亮 / 最近 / 收藏 / 主题直链 / 分支意图 / Markdown 导出 / 编辑重生成 / 悬停预览
+  - **V0.3.4** ✅ 使用说明面板 / AI 自动生成知识点标题 / 卡片与侧栏树右键菜单 / 隐藏自身与隐藏子分支
 - **V0.4 云端** ⏳ Supabase / Auth / 云同步 / RLS（版本号保留给登录系统）
 - **V0.5 公开测试** ⏳ BYOK / Provider 管理 / 限流 / 监控

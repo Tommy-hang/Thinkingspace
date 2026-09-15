@@ -20,6 +20,20 @@ export function requiresApiKey(provider: ProviderConfig): boolean {
   return provider.kind !== 'mock';
 }
 
+/** 一次性调用，把流式输出拼成完整字符串（用于生成标题等短任务） */
+export async function completeText(
+  input: Omit<RunChatInput, 'onDelta' | 'onReasoning'>,
+): Promise<string> {
+  let out = '';
+  await runChat({
+    ...input,
+    onDelta: (delta) => {
+      out += delta;
+    },
+  });
+  return out;
+}
+
 export async function runChat(input: RunChatInput): Promise<void> {
   const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking } = input;
 

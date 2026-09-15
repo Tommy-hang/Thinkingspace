@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/store';
 import { NODE_STATUS, type NodeStatus, type TopicNode } from '../types';
-import { IconX } from './icons';
+import { getHiddenIds } from '../lib/tree';
+import { IconEyeOff, IconX } from './icons';
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
@@ -15,6 +16,9 @@ export function Sidebar() {
   const updateProjectSummary = useStore((s) => s.updateProjectSummary);
   const recentNodeIds = useStore((s) => s.recentNodeIds);
   const togglePin = useStore((s) => s.togglePin);
+  const openNodeMenu = useStore((s) => s.openNodeMenu);
+  const showAllHidden = useStore((s) => s.showAllHidden);
+  const unhideNode = useStore((s) => s.unhideNode);
 
   const project = projects.find((p) => p.id === activeProjectId) ?? null;
 
@@ -63,13 +67,27 @@ export function Sidebar() {
 
   const pinnedNodes = useMemo(() => projectNodes.filter((n) => n.pinned), [projectNodes]);
 
+  const hiddenIds = useMemo(() => getHiddenIds(projectNodes), [projectNodes]);
+
+  const openMenuAt = (event: React.MouseEvent, nodeId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openNodeMenu(nodeId, { x: event.clientX, y: event.clientY });
+  };
+
+  const goToNode = (n: TopicNode) => {
+    if (n.hidden) unhideNode(n.id);
+    revealNode(n.id);
+  };
+
   if (!project) return null;
 
   const renderTree = (parentId: string | null, depth: number) => {
     const list = childrenOf.get(parentId) ?? [];
     return list.map((n) => {
       const status = NODE_STATUS[n.status];
-      const dim = statusFilter !== 'all' && n.status !== statusFilter;
+      const hidden = hiddenIds.has(n.id);
+      const dim = hidden || (statusFilter !== 'all' && n.status !== statusFilter);
       return (
         <div key={n.id}>
           <button
@@ -82,17 +100,23 @@ export function Sidebar() {
                   : 'transparent',
               color: dim ? 'var(--faint)' : 'var(--text)',
             }}
-            onClick={() => revealNode(n.id)}
+            title={hidden ? '已隐藏，右键可取消隐藏' : '右键查看更多操作'}
+            onClick={() => goToNode(n)}
+            onContextMenu={(e) => openMenuAt(e, n.id)}
           >
             <span
               className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: status.color }}
+              style={{ background: hidden ? 'var(--border-strong)' : status.color }}
             />
             <span className="flex-1 truncate">{n.title}</span>
-            {(msgCount.get(n.id) ?? 0) > 0 && (
-              <span className="shrink-0 text-[10px]" style={{ color: 'var(--faint)' }}>
-                {Math.ceil((msgCount.get(n.id) ?? 0) / 2)}
-              </span>
+            {hidden ? (
+              <IconEyeOff width={11} height={11} className="shrink-0" />
+            ) : (
+              (msgCount.get(n.id) ?? 0) > 0 && (
+                <span className="shrink-0 text-[10px]" style={{ color: 'var(--faint)' }}>
+                  {Math.ceil((msgCount.get(n.id) ?? 0) / 2)}
+                </span>
+              )
             )}
           </button>
           {renderTree(n.id, depth + 1)}
@@ -113,7 +137,12 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col">
             {recentNodes.map((n) => (
-              <NavRow key={n.id} node={n} onClick={() => revealNode(n.id)} />
+              <NavRow
+                key={n.id}
+                node={n}
+                onClick={() => revealNode(n.id)}
+                onContextMenu={(e) => openMenuAt(e, n.id)}
+              />
             ))}
           </div>
         </div>
@@ -131,6 +160,7 @@ export function Sidebar() {
                 node={n}
                 onClick={() => revealNode(n.id)}
                 onTogglePin={() => togglePin(n.id)}
+                onContextMenu={(e) => openMenuAt(e, n.id)}
               />
             ))}
           </div>
@@ -177,9 +207,20 @@ export function Sidebar() {
         <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--faint)' }}>
           主题结构
         </span>
-        <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
-          {projectNodes.length} 个
-        </span>
+        {hiddenIds.size > 0 ? (
+          <button
+            className="btn btn-ghost !px-1.5 !py-0 !text-[10.5px]"
+            style={{ color: 'var(--accent)' }}
+            title="把被隐藏的卡片全部恢复显示"
+            onClick={showAllHidden}
+          >
+            显示全部 · {hiddenIds.size}
+          </button>
+        ) : (
+          <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
+            {projectNodes.length} 个
+          </span>
+        )}
       </div>
 
       <div className="px-1.5 pb-4">{renderTree(null, 0)}</div>
@@ -191,14 +232,19 @@ function NavRow({
   node,
   onClick,
   onTogglePin,
+  onContextMenu,
 }: {
   node: TopicNode;
   onClick: () => void;
   onTogglePin?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const status = NODE_STATUS[node.status];
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1">
+    <div
+      className="group flex items-center gap-2 rounded-md px-2 py-1"
+      onContextMenu={onContextMenu}
+    >
       <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={onClick}>
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: status.color }} />
         <span className="truncate text-[12.5px]" style={{ color: 'var(--muted)' }}>

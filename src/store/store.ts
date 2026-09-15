@@ -23,6 +23,7 @@ import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
 import { getVisibleNodes } from '../lib/tree';
 import { intentToEdgeType } from '../lib/branchIntent';
+import { generateTitle, localSummary } from '../lib/title';
 import {
   loadData,
   loadSecrets,
@@ -45,6 +46,10 @@ interface UIState {
   streamingNodeId: string | null;
   searchingNodeId: string | null;
   nodeMenuId: string | null;
+  nodeMenuAnchor: { x: number; y: number } | null;
+  /** 打开聚焦视图后需要滚动定位到的消息 */
+  focusMessageId: string | null;
+  helpOpen: boolean;
 }
 
 interface HistoryState {
@@ -73,6 +78,12 @@ interface Actions {
 
   toggleCollapse: (id: string) => void;
   togglePin: (id: string) => void;
+  renameNode: (id: string, title: string) => void;
+  applyAutoTitle: (id: string, title: string, summary?: string) => void;
+  hideNode: (id: string) => void;
+  hideChildren: (id: string) => void;
+  unhideNode: (id: string) => void;
+  showAllHidden: () => void;
 
   undo: () => void;
   redo: () => void;
@@ -90,9 +101,12 @@ interface Actions {
 
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
+  focusNodeAt: (id: string, messageId: string) => void;
+  clearFocusMessage: () => void;
   revealNode: (id: string) => void;
   clearReveal: () => void;
-  openNodeMenu: (id: string | null) => void;
+  openNodeMenu: (id: string | null, anchor?: { x: number; y: number } | null) => void;
+  setHelpOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -177,11 +191,6 @@ function collectSubtree(nodes: TopicNode[], rootId: string): Set<string> {
   return ids;
 }
 
-function summarise(text: string, max = 160): string {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length <= max ? clean : `${clean.slice(0, max)}…`;
-}
-
 export const useStore = create<StoreState>((set, get) => ({
   ...initial,
   recentNodeIds: initial.recentNodeIds ?? [],
@@ -192,6 +201,9 @@ export const useStore = create<StoreState>((set, get) => ({
   focusedNodeId: null,
   revealNodeId: null,
   nodeMenuId: null,
+  nodeMenuAnchor: null,
+  focusMessageId: null,
+  helpOpen: false,
   searchOpen: false,
   settingsOpen: false,
   sidebarOpen: true,
@@ -405,6 +417,64 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
   },
 
+  renameNode: (id, title) => {
+    const next = title.trim();
+    if (!next) return;
+    pushHistory(`rename:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id ? { ...n, title: next, titleLocked: true, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  /** 由系统自动写入标题（不计入撤销历史，属于「提问」这一步的一部分） */
+  applyAutoTitle: (id, title, summary) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id && !n.titleLocked
+          ? {
+              ...n,
+              title: title || n.title,
+              summary: summary ?? n.summary,
+              updatedAt: Date.now(),
+            }
+          : n,
+      ),
+    })),
+
+  hideNode: (id) => {
+    pushHistory(`hide:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) => (n.id === id ? { ...n, hidden: true, updatedAt: Date.now() } : n)),
+    }));
+  },
+
+  hideChildren: (id) => {
+    pushHistory(`hideChildren:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.parentId === id ? { ...n, hidden: true, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  unhideNode: (id) => {
+    pushHistory(`unhide:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id ? { ...n, hidden: false, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  showAllHidden: () => {
+    pushHistory();
+    set((s) => ({
+      nodes: s.nodes.map((n) => (n.hidden ? { ...n, hidden: false } : n)),
+    }));
+  },
+
   undo: () => {
     const s = get();
     if (s.history.past.length === 0) return;
@@ -549,6 +619,7 @@ export const useStore = create<StoreState>((set, get) => ({
     }
 
     const now = Date.now();
+    const isFirstTurn = !state.messages.some((m) => m.nodeId === nodeId);
     const userMessage: Message | null = addUserMessage
       ? { id: uid('m_'), nodeId, role: 'user', content: question, createdAt: now }
       : null;
@@ -568,11 +639,6 @@ export const useStore = create<StoreState>((set, get) => ({
         n.id === nodeId
           ? {
               ...n,
-              title:
-                n.title === '新主题' || n.title === '新分支'
-                  ? summarise(question, 24)
-                  : n.title,
-              summary: n.summary || summarise(question),
               status: n.status === 'resolved' ? 'active' : n.status,
               updatedAt: now,
             }
@@ -663,6 +729,23 @@ export const useStore = create<StoreState>((set, get) => ({
         ),
         streamingNodeId: s.streamingNodeId === nodeId ? null : s.streamingNodeId,
       }));
+
+      // 第一次对话结束后，根据对话的「核心知识点」自动生成标题与摘要
+      if (isFirstTurn) {
+        const full = get().messages.find((m) => m.id === assistantMessage.id)?.content ?? '';
+        if (full.trim()) {
+          void generateTitle({
+            provider,
+            apiKey: get().secrets[provider.id] ?? '',
+            question,
+            answer: full,
+          }).then((title) => {
+            const current = get().nodes.find((n) => n.id === nodeId);
+            if (!current || current.titleLocked) return;
+            get().applyAutoTitle(nodeId, title, localSummary(full) || undefined);
+          });
+        }
+      }
     } catch (err) {
       const aborted = controller.signal.aborted;
       const message = aborted
@@ -706,8 +789,21 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
   },
 
+  focusNodeAt: (id, messageId) =>
+    set((s) => ({
+      focusedNodeId: id,
+      focusMessageId: messageId,
+      nodeMenuId: null,
+      nodeMenuAnchor: null,
+      recentNodeIds: [id, ...s.recentNodeIds.filter((x) => x !== id)].slice(0, 15),
+    })),
+
+  clearFocusMessage: () => set({ focusMessageId: null }),
+
   clearReveal: () => set({ revealNodeId: null }),
-  openNodeMenu: (id) => set({ nodeMenuId: id }),
+  openNodeMenu: (id, anchor) =>
+    set({ nodeMenuId: id, nodeMenuAnchor: anchor ?? null }),
+  setHelpOpen: (open) => set({ helpOpen: open }),
   setSearchOpen: (open) => set({ searchOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
