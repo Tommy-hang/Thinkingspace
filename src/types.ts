@@ -115,6 +115,8 @@ export interface Project {
   knowledgeMap?: KnowledgeMap;
   /** 上次同步时云端的版本号（仅本地记录，用于发现冲突） */
   cloudRevision?: number;
+  /** 上次同步时云端的更新时间（仅本地记录，用于判断云端是否变过） */
+  cloudUpdatedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

@@ -1,0 +1,44 @@
+name: Keep Supabase awake
+
+# Supabase 免费版的项目在「7 天没有任何访问」后会被自动暂停，
+# 暂停后所有人都会同步失败，需要手动去后台恢复。
+# 这个工作流每天访问一次数据库，避免被暂停。
+
+on:
+  schedule:
+    # GitHub Actions 的 cron 使用 UTC 时间
+    # 02:10 UTC = 北京时间 10:10
+    - cron: '10 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 访问一次数据库
+        run: |
+          URL="${{ vars.VITE_SUPABASE_URL }}"
+          KEY="${{ vars.VITE_SUPABASE_ANON_KEY }}"
+
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Supabase 变量未配置，跳过"
+            exit 0
+          fi
+
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+            "$URL/rest/v1/projects?select=id&limit=1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY")
+
+          echo "HTTP $code"
+
+          # 200 = 正常返回；401/403 = 被 RLS 拦下，但数据库确实被访问了
+          case "$code" in
+            200|401|403)
+              echo "保活成功：数据库已被访问"
+              ;;
+            *)
+              echo "保活异常，请检查 Supabase 项目是否已暂停"
+              exit 1
+              ;;
+          esac

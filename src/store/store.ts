@@ -293,6 +293,18 @@ async function flushPush(): Promise<void> {
       await syncSettingsToCloud(snapshot.settings);
       settingsDirty = false;
     }
+    // 把云端返回的版本标记写回本地，避免下次重复推送
+    if (result.updated.length > 0) {
+      const marks = new Map(result.updated.map((u) => [u.id, u]));
+      useStore.setState((s) => ({
+        projects: s.projects.map((p) => {
+          const mark = marks.get(p.id);
+          return mark
+            ? { ...p, cloudRevision: mark.revision, cloudUpdatedAt: mark.updatedAt }
+            : p;
+        }),
+      }));
+    }
     useStore.setState({
       cloudStatus: 'synced',
       cloudNotice: result.warnings.length > 0 ? result.warnings.join(' ') : null,

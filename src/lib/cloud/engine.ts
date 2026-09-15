@@ -1,7 +1,9 @@
 import type { GraphEdge, Message, Project, Settings, TopicNode } from '../../types';
 import {
   deleteRemoteProjects,
-  pullAll,
+  fetchProjectContents,
+  pullProjectMetas,
+  pullSettings,
   pushProject,
   pushSettings,
   type ProjectContent,
@@ -23,23 +25,24 @@ export interface MergeOutcome {
   warnings: string[];
 }
 
-/** 记录每个项目「上次同步时云端的版本号」和「上次推送时的本地时间」 */
+export interface PushOutcome {
+  pushed: number;
+  warnings: string[];
+  /** 推送成功后云端返回的版本信息，需要写回本地项目 */
+  updated: { id: string; revision: number; updatedAt: number }[];
+}
+
+/** 记录每个项目「上次同步时云端的版本号」，用于发现冲突 */
 const knownRevisions = new Map<string, number>();
-const lastPushedAt = new Map<string, number>();
 let activeUserId: string | null = null;
 
 export function resetCloudEngine(userId: string | null): void {
   knownRevisions.clear();
-  lastPushedAt.clear();
   activeUserId = userId;
 }
 
 export function hasCloudSession(): boolean {
   return activeUserId !== null;
-}
-
-export function cloudSnapshotState(): { projects: number } {
-  return { projects: lastPushedAt.size };
 }
 
 function contentOf(snapshot: WorkspaceSnapshot, project: Project): ProjectContent {
@@ -65,22 +68,71 @@ function projectFromRemote(remote: RemoteProject): Project {
     updatedAt: remote.updatedAt,
     openQuestions: remote.content.openQuestions,
     knowledgeMap: remote.content.knowledgeMap,
-    cloudRevision: remote.revision,
   };
 }
 
-/**
- * 登录后的首次完整同步：
- * 逐个项目比较「云端更新时间」和「本地更新时间」，新的胜出；本地独有的项目上传。
- */
-export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> {
-  const remote = await pullAll();
-  if (!remote) {
-    return { snapshot: local, pulledCount: 0, pushedCount: 0, warnings: [] };
+/** 本地是否有「尚未上传」的改动 */
+function hasLocalChanges(project: Project): boolean {
+  return project.updatedAt > (project.cloudUpdatedAt ?? 0);
+}
+
+async function pushOne(
+  project: Project,
+  local: WorkspaceSnapshot,
+  warnings: string[],
+): Promise<{ revision: number; updatedAt: number } | null> {
+  const content = contentOf(local, project);
+  const first = await pushProject(project, content, knownRevisions.get(project.id));
+
+  if (first.status === 'created' || first.status === 'updated') {
+    knownRevisions.set(project.id, first.revision);
+    return { revision: first.revision, updatedAt: first.updatedAt };
   }
 
+  if (first.status === 'conflict') {
+    const retry = await pushProject(project, content, first.remote.revision);
+    if (retry.status === 'created' || retry.status === 'updated') {
+      knownRevisions.set(project.id, retry.revision);
+      warnings.push(`「${project.title}」在别处也被修改过，已按本地版本保存。`);
+      return { revision: retry.revision, updatedAt: retry.updatedAt };
+    }
+    warnings.push(`「${project.title}」同步失败，稍后会自动重试。`);
+    return null;
+  }
+
+  if (first.status === 'error') {
+    warnings.push(`「${project.title}」：${first.message}`);
+  }
+  return null;
+}
+
+/**
+ * 登录后的完整同步。
+ *
+ * 省流量的关键：先只拉「项目元信息」（很小），
+ * 只有当云端某个项目确实变过时，才去拉它的完整内容。
+ */
+export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> {
+  const metas = await pullProjectMetas();
+  if (!metas) {
+    return { snapshot: local, pulledCount: 0, pushedCount: 0, warnings: [] };
+  }
+  const remoteSettings = await pullSettings();
+
   const localById = new Map(local.projects.map((p) => [p.id, p]));
-  const remoteIds = new Set(remote.projects.map((p) => p.id));
+  const metaById = new Map(metas.map((m) => [m.id, m]));
+
+  // 按需加载：只拉云端确实更新过的项目内容
+  const needIds: string[] = [];
+  for (const meta of metas) {
+    const localProject = localById.get(meta.id);
+    if (!localProject) {
+      needIds.push(meta.id);
+      continue;
+    }
+    if (meta.updatedAt > (localProject.cloudUpdatedAt ?? 0)) needIds.push(meta.id);
+  }
+  const contents = await fetchProjectContents(needIds);
 
   const projects: Project[] = [];
   const nodes: TopicNode[] = [];
@@ -90,41 +142,48 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
   const warnings: string[] = [];
   let pulledCount = 0;
 
-  for (const remoteProject of remote.projects) {
-    const localProject = localById.get(remoteProject.id);
-    const remoteNewer = !localProject || remoteProject.updatedAt > localProject.updatedAt;
-    knownRevisions.set(remoteProject.id, remoteProject.revision);
+  for (const meta of metas) {
+    knownRevisions.set(meta.id, meta.revision);
+    const localProject = localById.get(meta.id);
+    const content = contents.get(meta.id);
 
-    if (remoteNewer) {
-      projects.push(projectFromRemote(remoteProject));
-      nodes.push(...remoteProject.content.nodes);
-      edges.push(...remoteProject.content.edges);
-      messages.push(...remoteProject.content.messages);
-      lastPushedAt.set(remoteProject.id, remoteProject.updatedAt);
-      pulledCount += 1;
-    } else if (localProject) {
-      projects.push(localProject);
-      const content = contentOf(local, localProject);
+    if (content) {
+      // 云端变过 → 采用云端版本
+      const remote: RemoteProject = { ...meta, content };
+      projects.push({
+        ...projectFromRemote(remote),
+        cloudRevision: meta.revision,
+        cloudUpdatedAt: meta.updatedAt,
+      });
       nodes.push(...content.nodes);
       edges.push(...content.edges);
       messages.push(...content.messages);
-      toPush.push(localProject);
+      pulledCount += 1;
+    } else if (localProject) {
+      // 云端没变 → 保留本地版本
+      projects.push({ ...localProject, cloudRevision: meta.revision });
+      const own = contentOf(local, localProject);
+      nodes.push(...own.nodes);
+      edges.push(...own.edges);
+      messages.push(...own.messages);
+      if (hasLocalChanges(localProject)) toPush.push(localProject);
     }
   }
 
+  // 本地独有的项目 → 首次上传
   for (const localProject of local.projects) {
-    if (remoteIds.has(localProject.id)) continue;
+    if (metaById.has(localProject.id)) continue;
     projects.push(localProject);
-    const content = contentOf(local, localProject);
-    nodes.push(...content.nodes);
-    edges.push(...content.edges);
-    messages.push(...content.messages);
+    const own = contentOf(local, localProject);
+    nodes.push(...own.nodes);
+    edges.push(...own.edges);
+    messages.push(...own.messages);
     toPush.push(localProject);
   }
 
   let settings = local.settings;
-  if (remote.settings) {
-    settings = remote.settings;
+  if (remoteSettings) {
+    settings = remoteSettings;
   } else {
     try {
       await pushSettings(local.settings);
@@ -134,87 +193,53 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
   }
 
   let pushedCount = 0;
+  const pushedInfo = new Map<string, { revision: number; updatedAt: number }>();
   for (const project of toPush) {
-    const outcome = await pushProject(
-      project,
-      contentOf(local, project),
-      knownRevisions.get(project.id),
-    );
-    if (outcome.status === 'created' || outcome.status === 'updated') {
-      knownRevisions.set(project.id, outcome.revision);
-      lastPushedAt.set(project.id, project.updatedAt);
+    const info = await pushOne(project, local, warnings);
+    if (info) {
+      pushedInfo.set(project.id, info);
       pushedCount += 1;
-    } else if (outcome.status === 'conflict') {
-      const retry = await pushProject(project, contentOf(local, project), outcome.remote.revision);
-      if (retry.status === 'created' || retry.status === 'updated') {
-        knownRevisions.set(project.id, retry.revision);
-        lastPushedAt.set(project.id, project.updatedAt);
-        pushedCount += 1;
-        warnings.push(`「${project.title}」在别处也被修改过，已按本地版本保存。`);
-      } else {
-        warnings.push(`「${project.title}」同步失败，稍后会自动重试。`);
-      }
-    } else if (outcome.status === 'error') {
-      warnings.push(`「${project.title}」：${outcome.message}`);
     }
   }
 
   return {
-    snapshot: { projects, nodes, edges, messages, settings },
+    snapshot: {
+      projects: projects.map((p) => {
+        const info = pushedInfo.get(p.id);
+        return info
+          ? { ...p, cloudRevision: info.revision, cloudUpdatedAt: info.updatedAt }
+          : p;
+      }),
+      nodes,
+      edges,
+      messages,
+      settings,
+    },
     pulledCount,
     pushedCount,
     warnings,
   };
 }
 
-/** 日常增量：只推送本地有变化的项目 */
-export async function pushDirty(
-  local: WorkspaceSnapshot,
-): Promise<{ pushed: number; warnings: string[] }> {
+/** 日常增量：只推送本地有改动、且尚未上传的项目 */
+export async function pushDirty(local: WorkspaceSnapshot): Promise<PushOutcome> {
   const warnings: string[] = [];
-  let pushed = 0;
+  const updated: PushOutcome['updated'] = [];
 
   for (const project of local.projects) {
-    const last = lastPushedAt.get(project.id) ?? 0;
-    if (project.updatedAt <= last) continue;
-
-    const outcome = await pushProject(
-      project,
-      contentOf(local, project),
-      knownRevisions.get(project.id),
-    );
-
-    if (outcome.status === 'created' || outcome.status === 'updated') {
-      knownRevisions.set(project.id, outcome.revision);
-      lastPushedAt.set(project.id, project.updatedAt);
-      pushed += 1;
-    } else if (outcome.status === 'conflict') {
-      const retry = await pushProject(project, contentOf(local, project), outcome.remote.revision);
-      if (retry.status === 'created' || retry.status === 'updated') {
-        knownRevisions.set(project.id, retry.revision);
-        lastPushedAt.set(project.id, project.updatedAt);
-        pushed += 1;
-        warnings.push(`「${project.title}」在别处也被修改过，已按本地版本保存。`);
-      }
-    } else if (outcome.status === 'error') {
-      warnings.push(`「${project.title}」：${outcome.message}`);
-    }
+    if (!hasLocalChanges(project)) continue;
+    const info = await pushOne(project, local, warnings);
+    if (info) updated.push({ id: project.id, ...info });
   }
 
-  return { pushed, warnings };
+  return { pushed: updated.length, warnings, updated };
 }
 
 export async function removeRemoteProject(projectId: string): Promise<void> {
   await deleteRemoteProjects([projectId]);
   knownRevisions.delete(projectId);
-  lastPushedAt.delete(projectId);
 }
 
 export async function syncSettingsToCloud(settings: Settings): Promise<void> {
   await pushSettings(settings);
-}
-
-export function markProjectPushed(projectId: string, updatedAt: number, revision?: number): void {
-  lastPushedAt.set(projectId, updatedAt);
-  if (revision !== undefined) knownRevisions.set(projectId, revision);
 }

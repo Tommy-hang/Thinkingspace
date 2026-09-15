@@ -106,6 +106,11 @@ try {
   check('首次同步把本地项目上传到云端', first.pushedCount === 1);
   check('首次同步没有报错', first.warnings.length === 0);
 
+  // ===== 按需加载验证：没有变化时不应该拉取任何项目内容 =====
+  const noop = await engineMod.fullSync(first.snapshot);
+  check('无变化时拉取 0 个项目内容（按需加载生效）', noop.pulledCount === 0);
+  check('无变化时不重复推送', noop.pushedCount === 0);
+
   engineMod.resetCloudEngine(user.id);
   const second = await engineMod.fullSync(empty(settings));
   check('从空本地能拉回云端项目', second.snapshot.projects.length === 1);
@@ -126,6 +131,21 @@ try {
   };
   const pushed = await engineMod.pushDirty(edited);
   check('增量推送能识别改动', pushed.pushed === 1);
+  check('推送后返回云端版本标记', pushed.updated.length === 1);
+
+  // 推送后拿到标记，再次增量推送应该什么都不做
+  const marked = {
+    ...edited,
+    projects: [
+      {
+        ...edited.projects[0],
+        cloudRevision: pushed.updated[0].revision,
+        cloudUpdatedAt: pushed.updated[0].updatedAt,
+      },
+    ],
+  };
+  const again = await engineMod.pushDirty(marked);
+  check('已同步的内容不会重复推送', again.pushed === 0);
 
   engineMod.resetCloudEngine(user.id);
   const verify = await engineMod.fullSync(empty(settings));

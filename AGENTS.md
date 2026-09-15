@@ -70,6 +70,10 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
   - 配置：`.env.local` 填 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`；GitHub Actions 用同名 Secrets
   - 建表：`supabase/schema.sql` 粘到 Supabase SQL Editor 执行
   - 设计：内容按项目整体存 `content jsonb`（单人/小团队场景，简单可靠）；同步在 `src/lib/cloud/engine.ts` 一层内，业务代码无感知
+  - **按需加载**：同步时先只拉项目元信息，只有云端确实变过的项目才拉 `content`（省约 90% 流量）
+  - **项目级同步标记**：`Project.cloudUpdatedAt` / `cloudRevision` 持久化在本地，用于判断「云端变没变」和「本地有没有未上传的改动」
+  - **定时保活**：`.github/workflows/keep-alive.yml` 每天访问一次数据库，避免免费项目 7 天不活动被暂停
+  - **数据迁移**：唯一入口 `migrateOpenQuestions()`（在 `src/lib/storage.ts`），本地读取与云端拉取两条路径都会调用
 - **V0.5 公开测试**：BYOK / Provider 管理 / 限流 / 监控（未开始）
 
 ## 安全规则
