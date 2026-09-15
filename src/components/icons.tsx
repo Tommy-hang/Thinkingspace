@@ -127,6 +127,68 @@ export const IconCheck = (p: P) => (
   </svg>
 );
 
+export const IconUndo = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h11a5 5 0 0 1 0 10h-4" />
+  </svg>
+);
+
+export const IconRedo = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="m15 14 5-5-5-5" />
+    <path d="M20 9H9a5 5 0 0 0 0 10h4" />
+  </svg>
+);
+
+export const IconPin = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 17v5" />
+    <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" />
+  </svg>
+);
+
+export const IconLink = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M10 13a4 4 0 0 0 5.7.3l2.6-2.6a4 4 0 0 0-5.7-5.7L11.3 6.3" />
+    <path d="M14 11a4 4 0 0 0-5.7-.3l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.3-1.3" />
+  </svg>
+);
+
+export const IconChevronDown = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+export const IconChevronRight = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
+export const IconMore = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const IconEdit = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </svg>
+);
+
+export const IconRefresh = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M21 12a9 9 0 1 1-3-6.7" />
+    <path d="M21 4v5h-5" />
+  </svg>
+);
+
 export const IconGlobe = (p: P) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="9" />

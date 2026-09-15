@@ -14,6 +14,8 @@ export default function App() {
   const focusedNodeId = useStore((s) => s.focusedNodeId);
   const focusNode = useStore((s) => s.focusNode);
   const setSearchOpen = useStore((s) => s.setSearchOpen);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
 
   const [origin, setOrigin] = useState<{ id: string; rect: DOMRect | null } | null>(null);
 
@@ -23,14 +25,37 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setSearchOpen(true);
+        return;
+      }
+      if (!mod) return;
+
+      // 输入框 / 文本域中保留浏览器原生的文本撤销行为
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        redo();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setSearchOpen]);
+  }, [setSearchOpen, undo, redo]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

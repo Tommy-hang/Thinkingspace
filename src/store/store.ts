@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import type {
   BranchAnchor,
+  BranchIntent,
   ContextSettings,
   GraphEdge,
+  HistorySnapshot,
   Message,
   NodeStatus,
   PersistedData,
@@ -19,6 +21,8 @@ import { buildContext } from '../lib/ai/contextBuilder';
 import { runChat } from '../lib/ai';
 import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
+import { getVisibleNodes } from '../lib/tree';
+import { intentToEdgeType } from '../lib/branchIntent';
 import {
   loadData,
   loadSecrets,
@@ -40,6 +44,12 @@ interface UIState {
   statusFilter: NodeStatus | 'all';
   streamingNodeId: string | null;
   searchingNodeId: string | null;
+  nodeMenuId: string | null;
+}
+
+interface HistoryState {
+  past: HistorySnapshot[];
+  future: HistorySnapshot[];
 }
 
 interface Actions {
@@ -50,22 +60,39 @@ interface Actions {
   deleteProject: (id: string) => void;
 
   createRootNode: () => string;
-  createBranch: (parentId: string, anchor?: Partial<BranchAnchor>, title?: string) => string;
+  createBranch: (
+    parentId: string,
+    anchor?: Partial<BranchAnchor>,
+    title?: string,
+    intent?: BranchIntent,
+  ) => string;
   updateNode: (id: string, patch: Partial<Pick<TopicNode, 'title' | 'summary' | 'status'>>) => void;
   moveNode: (id: string, position: { x: number; y: number }) => void;
   deleteNode: (id: string) => void;
   applyAutoLayout: () => void;
 
+  toggleCollapse: (id: string) => void;
+  togglePin: (id: string) => void;
+
+  undo: () => void;
+  redo: () => void;
+  beginNodeDrag: (id: string) => void;
+  endNodeDrag: (id: string) => void;
+
   addEdge: (source: string, target: string, type?: GraphEdge['type']) => void;
   removeEdge: (id: string) => void;
 
   sendMessage: (nodeId: string, text: string) => Promise<void>;
+  regenerate: (nodeId: string) => Promise<void>;
+  editUserMessage: (nodeId: string, messageId: string, content: string) => Promise<void>;
+  _generate: (nodeId: string, question: string, addUserMessage: boolean) => Promise<void>;
   stopStreaming: (nodeId: string) => void;
 
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
   revealNode: (id: string) => void;
   clearReveal: () => void;
+  openNodeMenu: (id: string | null) => void;
   setSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -90,11 +117,50 @@ interface Actions {
   resetToSample: () => void;
 }
 
-export type StoreState = PersistedData & UIState & { secrets: Secrets } & Actions;
+export type StoreState = Omit<PersistedData, 'recentNodeIds'> & { recentNodeIds: string[] } &
+  UIState & { secrets: Secrets; history: HistoryState } & Actions;
 
 const initial = loadData();
 
 const controllers = new Map<string, AbortController>();
+
+const HISTORY_LIMIT = 60;
+
+/** 拖动开始时的快照，拖动结束后才真正进入历史，避免一次拖动产生几十条记录 */
+let dragStart: { snapshot: HistorySnapshot; position: { x: number; y: number } } | null = null;
+
+let lastHistoryKey: string | null = null;
+let lastHistoryAt = 0;
+
+function snapshotOf(s: StoreState): HistorySnapshot {
+  return {
+    projects: s.projects,
+    nodes: s.nodes,
+    edges: s.edges,
+    messages: s.messages,
+    activeProjectId: s.activeProjectId,
+  };
+}
+
+function pushHistory(coalesceKey?: string) {
+  const s = useStore.getState();
+  const now = Date.now();
+  if (coalesceKey && lastHistoryKey === coalesceKey && now - lastHistoryAt < 1200) {
+    lastHistoryAt = now;
+    return;
+  }
+  lastHistoryKey = coalesceKey ?? null;
+  lastHistoryAt = now;
+
+  const past = [...s.history.past, snapshotOf(s)];
+  if (past.length > HISTORY_LIMIT) past.shift();
+  useStore.setState({ history: { past, future: [] } });
+}
+
+function resetHistoryCoalesce() {
+  lastHistoryKey = null;
+  lastHistoryAt = 0;
+}
 
 function collectSubtree(nodes: TopicNode[], rootId: string): Set<string> {
   const ids = new Set<string>([rootId]);
@@ -118,11 +184,14 @@ function summarise(text: string, max = 160): string {
 
 export const useStore = create<StoreState>((set, get) => ({
   ...initial,
+  recentNodeIds: initial.recentNodeIds ?? [],
   secrets: loadSecrets(),
+  history: { past: [], future: [] },
 
   selectedNodeId: null,
   focusedNodeId: null,
   revealNodeId: null,
+  nodeMenuId: null,
   searchOpen: false,
   settingsOpen: false,
   sidebarOpen: true,
@@ -140,6 +209,7 @@ export const useStore = create<StoreState>((set, get) => ({
     }),
 
   createProject: (title) => {
+    pushHistory();
     const now = Date.now();
     const project: Project = {
       id: uid('p_'),
@@ -169,21 +239,26 @@ export const useStore = create<StoreState>((set, get) => ({
     return project.id;
   },
 
-  renameProject: (id, title) =>
+  renameProject: (id, title) => {
+    pushHistory(`project-title:${id}`);
     set((s) => ({
       projects: s.projects.map((p) =>
         p.id === id ? { ...p, title, updatedAt: Date.now() } : p,
       ),
-    })),
+    }));
+  },
 
-  updateProjectSummary: (id, summary) =>
+  updateProjectSummary: (id, summary) => {
+    pushHistory(`project-summary:${id}`);
     set((s) => ({
       projects: s.projects.map((p) =>
         p.id === id ? { ...p, summary, updatedAt: Date.now() } : p,
       ),
-    })),
+    }));
+  },
 
-  deleteProject: (id) =>
+  deleteProject: (id) => {
+    pushHistory();
     set((s) => {
       const nodeIds = new Set(s.nodes.filter((n) => n.projectId === id).map((n) => n.id));
       const projects = s.projects.filter((p) => p.id !== id);
@@ -198,9 +273,11 @@ export const useStore = create<StoreState>((set, get) => ({
         selectedNodeId: null,
         focusedNodeId: null,
       };
-    }),
+    });
+  },
 
   createRootNode: () => {
+    pushHistory();
     const s = get();
     const projectId = s.activeProjectId;
     if (!projectId) return '';
@@ -221,10 +298,11 @@ export const useStore = create<StoreState>((set, get) => ({
     return node.id;
   },
 
-  createBranch: (parentId, anchor, title) => {
+  createBranch: (parentId, anchor, title, intent) => {
     const s = get();
     const parent = s.nodes.find((n) => n.id === parentId);
     if (!parent) return '';
+    pushHistory();
     const now = Date.now();
     const siblings = s.nodes.filter((n) => n.parentId === parentId);
     const node: TopicNode = {
@@ -238,6 +316,7 @@ export const useStore = create<StoreState>((set, get) => ({
         y: parent.position.y + siblings.length * 168,
       },
       status: 'active',
+      intent,
       anchor: anchor
         ? {
             sourceNodeId: anchor.sourceNodeId ?? parentId,
@@ -254,7 +333,7 @@ export const useStore = create<StoreState>((set, get) => ({
       projectId: parent.projectId,
       source: parentId,
       target: node.id,
-      type: 'branch',
+      type: intent ? intentToEdgeType(intent) : 'branch',
       createdAt: now,
     };
     set((state) => ({
@@ -265,17 +344,20 @@ export const useStore = create<StoreState>((set, get) => ({
     return node.id;
   },
 
-  updateNode: (id, patch) =>
+  updateNode: (id, patch) => {
+    pushHistory(`node:${id}`);
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...patch, updatedAt: Date.now() } : n)),
-    })),
+    }));
+  },
 
   moveNode: (id, position) =>
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, position, updatedAt: Date.now() } : n)),
     })),
 
-  deleteNode: (id) =>
+  deleteNode: (id) => {
+    pushHistory();
     set((s) => {
       const node = s.nodes.find((n) => n.id === id);
       if (!node) return {};
@@ -287,21 +369,101 @@ export const useStore = create<StoreState>((set, get) => ({
         selectedNodeId: s.selectedNodeId && doomed.has(s.selectedNodeId) ? null : s.selectedNodeId,
         focusedNodeId: s.focusedNodeId && doomed.has(s.focusedNodeId) ? null : s.focusedNodeId,
       };
-    }),
+    });
+  },
 
-  applyAutoLayout: () =>
+  applyAutoLayout: () => {
+    pushHistory();
     set((s) => {
       if (!s.activeProjectId) return {};
       const projectNodes = s.nodes.filter((n) => n.projectId === s.activeProjectId);
-      const positions = layoutTree(projectNodes);
+      // 只排列当前可见的节点，被折叠的后代保持原位置，展开后不会错乱
+      const positions = layoutTree(getVisibleNodes(projectNodes));
       return {
         nodes: s.nodes.map((n) =>
           positions.has(n.id) ? { ...n, position: positions.get(n.id)! } : n,
         ),
       };
-    }),
+    });
+  },
 
-  addEdge: (source, target, type = 'branch') =>
+  toggleCollapse: (id) => {
+    pushHistory(`collapse:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id ? { ...n, collapsed: !n.collapsed, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  togglePin: (id) => {
+    pushHistory(`pin:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id ? { ...n, pinned: !n.pinned, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  undo: () => {
+    const s = get();
+    if (s.history.past.length === 0) return;
+    const past = [...s.history.past];
+    const prev = past.pop()!;
+    const future = [snapshotOf(s), ...s.history.future].slice(0, HISTORY_LIMIT);
+    resetHistoryCoalesce();
+    const ids = new Set(prev.nodes.map((n) => n.id));
+    set({
+      ...prev,
+      history: { past, future },
+      selectedNodeId: s.selectedNodeId && ids.has(s.selectedNodeId) ? s.selectedNodeId : null,
+      focusedNodeId: s.focusedNodeId && ids.has(s.focusedNodeId) ? s.focusedNodeId : null,
+      revealNodeId: null,
+    });
+  },
+
+  redo: () => {
+    const s = get();
+    if (s.history.future.length === 0) return;
+    const future = [...s.history.future];
+    const next = future.shift()!;
+    const past = [...s.history.past, snapshotOf(s)].slice(-HISTORY_LIMIT);
+    resetHistoryCoalesce();
+    const ids = new Set(next.nodes.map((n) => n.id));
+    set({
+      ...next,
+      history: { past, future },
+      selectedNodeId: s.selectedNodeId && ids.has(s.selectedNodeId) ? s.selectedNodeId : null,
+      focusedNodeId: s.focusedNodeId && ids.has(s.focusedNodeId) ? s.focusedNodeId : null,
+      revealNodeId: null,
+    });
+  },
+
+  beginNodeDrag: (id) => {
+    const s = get();
+    const node = s.nodes.find((n) => n.id === id);
+    if (!node) return;
+    dragStart = { snapshot: snapshotOf(s), position: { ...node.position } };
+  },
+
+  endNodeDrag: (id) => {
+    if (!dragStart) return;
+    const s = get();
+    const node = s.nodes.find((n) => n.id === id);
+    const moved =
+      node &&
+      (node.position.x !== dragStart.position.x || node.position.y !== dragStart.position.y);
+    if (moved) {
+      const past = [...s.history.past, dragStart.snapshot];
+      if (past.length > HISTORY_LIMIT) past.shift();
+      set({ history: { past, future: [] } });
+      resetHistoryCoalesce();
+    }
+    dragStart = null;
+  },
+
+  addEdge: (source, target, type = 'branch') => {
+    pushHistory();
     set((s) => {
       const projectId = s.activeProjectId;
       if (!projectId || source === target) return {};
@@ -315,14 +477,64 @@ export const useStore = create<StoreState>((set, get) => ({
         createdAt: Date.now(),
       };
       return { edges: [...s.edges, edge] };
-    }),
+    });
+  },
 
-  removeEdge: (id) => set((s) => ({ edges: s.edges.filter((e) => e.id !== id) })),
+  removeEdge: (id) => {
+    pushHistory();
+    set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }));
+  },
 
   sendMessage: async (nodeId, text) => {
     const question = text.trim();
     if (!question) return;
+    pushHistory();
+    await get()._generate(nodeId, question, true);
+  },
 
+  regenerate: async (nodeId) => {
+    const s = get();
+    const own = s.messages.filter((m) => m.nodeId === nodeId);
+    const lastUser = [...own].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return;
+
+    const keep = new Set<string>();
+    for (const m of own) {
+      keep.add(m.id);
+      if (m.id === lastUser.id) break;
+    }
+    pushHistory();
+    set((state) => ({
+      messages: state.messages.filter((m) => m.nodeId !== nodeId || keep.has(m.id)),
+    }));
+    await get()._generate(nodeId, lastUser.content, false);
+  },
+
+  editUserMessage: async (nodeId, messageId, content) => {
+    const text = content.trim();
+    if (!text) return;
+
+    const s = get();
+    const own = s.messages.filter((m) => m.nodeId === nodeId);
+    const lastUser = [...own].reverse().find((m) => m.role === 'user');
+    // 只允许编辑最近一次提问，避免破坏后续对话的上下文
+    if (!lastUser || lastUser.id !== messageId) return;
+
+    const keep = new Set<string>();
+    for (const m of own) {
+      keep.add(m.id);
+      if (m.id === lastUser.id) break;
+    }
+    pushHistory();
+    set((state) => ({
+      messages: state.messages
+        .filter((m) => m.nodeId !== nodeId || keep.has(m.id))
+        .map((m) => (m.id === messageId ? { ...m, content: text } : m)),
+    }));
+    await get()._generate(nodeId, text, false);
+  },
+
+  _generate: async (nodeId, question, addUserMessage) => {
     const state = get();
     const node = state.nodes.find((n) => n.id === nodeId);
     const project = state.projects.find((p) => p.id === node?.projectId);
@@ -337,13 +549,9 @@ export const useStore = create<StoreState>((set, get) => ({
     }
 
     const now = Date.now();
-    const userMessage: Message = {
-      id: uid('m_'),
-      nodeId,
-      role: 'user',
-      content: question,
-      createdAt: now,
-    };
+    const userMessage: Message | null = addUserMessage
+      ? { id: uid('m_'), nodeId, role: 'user', content: question, createdAt: now }
+      : null;
     const assistantMessage: Message = {
       id: uid('m_'),
       nodeId,
@@ -354,7 +562,7 @@ export const useStore = create<StoreState>((set, get) => ({
     };
 
     set((s) => ({
-      messages: [...s.messages, userMessage, assistantMessage],
+      messages: [...s.messages, ...(userMessage ? [userMessage] : []), assistantMessage],
       streamingNodeId: nodeId,
       nodes: s.nodes.map((n) =>
         n.id === nodeId
@@ -479,9 +687,27 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   selectNode: (id) => set({ selectedNodeId: id }),
-  focusNode: (id) => set({ focusedNodeId: id }),
-  revealNode: (id) => set({ selectedNodeId: id, revealNodeId: id }),
+
+  focusNode: (id) => {
+    set({ focusedNodeId: id });
+    if (id) {
+      set((s) => ({
+        recentNodeIds: [id, ...s.recentNodeIds.filter((x) => x !== id)].slice(0, 15),
+      }));
+    }
+  },
+
+  revealNode: (id) => {
+    set((s) => ({
+      selectedNodeId: id,
+      revealNodeId: id,
+      nodeMenuId: null,
+      recentNodeIds: [id, ...s.recentNodeIds.filter((x) => x !== id)].slice(0, 15),
+    }));
+  },
+
   clearReveal: () => set({ revealNodeId: null }),
+  openNodeMenu: (id) => set({ nodeMenuId: id }),
   setSearchOpen: (open) => set({ searchOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -580,6 +806,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   importFromText: (text) => {
     const imported = parseBundle(text);
+    pushHistory();
     set((s) => ({
       projects: [...imported.projects, ...s.projects],
       nodes: [...imported.nodes, ...s.nodes],
@@ -597,10 +824,13 @@ export const useStore = create<StoreState>((set, get) => ({
     const fresh = loadData();
     set({
       ...fresh,
+      recentNodeIds: [],
       secrets: {},
+      history: { past: [], future: [] },
       selectedNodeId: null,
       focusedNodeId: null,
       revealNodeId: null,
+      nodeMenuId: null,
       statusFilter: 'all',
     });
   },
@@ -619,6 +849,7 @@ useStore.subscribe((state) => {
       messages: state.messages,
       settings: state.settings,
       activeProjectId: state.activeProjectId,
+      recentNodeIds: state.recentNodeIds,
     });
   }, 350);
 });

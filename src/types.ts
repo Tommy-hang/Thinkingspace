@@ -45,6 +45,24 @@ export interface BranchAnchor {
   parentContextSummary?: string;
 }
 
+/** 创建分支时用户表达的「认知动作」 */
+export type BranchIntent =
+  | 'branch'
+  | 'explore'
+  | 'why'
+  | 'example'
+  | 'counterexample'
+  | 'connection'
+  | 'custom';
+
+export interface HistorySnapshot {
+  projects: Project[];
+  nodes: TopicNode[];
+  edges: GraphEdge[];
+  messages: Message[];
+  activeProjectId: string | null;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -62,6 +80,12 @@ export interface TopicNode {
   position: { x: number; y: number };
   status: NodeStatus;
   anchor?: BranchAnchor;
+  /** 用户标记为「重要」（独立于认知状态） */
+  pinned?: boolean;
+  /** 仅影响地图显示，不改变知识结构 */
+  collapsed?: boolean;
+  /** 该分支诞生时的认知动作 */
+  intent?: BranchIntent;
   createdAt: number;
   updatedAt: number;
 }
@@ -168,13 +192,19 @@ export interface PersistedData {
   messages: Message[];
   settings: Settings;
   activeProjectId: string | null;
+  /** 最近访问过的主题（仅本机） */
+  recentNodeIds?: string[];
 }
 
 export interface TopicNodeData extends Record<string, unknown> {
   topic: TopicNode;
   messageCount: number;
   branchCount: number;
-  isDimmed: boolean;
+  /** 1 = 正常；小于 1 表示被状态筛选或路径高亮淡化 */
+  dimOpacity: number;
+  onPath: boolean;
+  /** 被该节点折叠隐藏的后代数量 */
+  hiddenCount: number;
 }
 
 export type TopicFlowNode = Node<TopicNodeData, 'topic'>;

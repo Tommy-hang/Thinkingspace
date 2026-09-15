@@ -10,10 +10,12 @@ import {
   IconLayout,
   IconMoon,
   IconPlus,
+  IconRedo,
   IconSearch,
   IconSettings,
   IconSun,
   IconTrash,
+  IconUndo,
   IconUpload,
 } from './icons';
 
@@ -40,6 +42,10 @@ export function TopBar() {
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const updateSettings = useStore((s) => s.updateSettings);
   const importFromText = useStore((s) => s.importFromText);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const canUndo = useStore((s) => s.history.past.length > 0);
+  const canRedo = useStore((s) => s.history.future.length > 0);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [renaming, setRenaming] = useState(false);
@@ -164,6 +170,25 @@ export function TopBar() {
       )}
 
       <div className="ml-auto flex items-center gap-1">
+        <button
+          className="btn btn-ghost px-2"
+          onClick={undo}
+          disabled={!canUndo}
+          title="撤销 (Ctrl+Z)"
+          style={{ opacity: canUndo ? 1 : 0.32 }}
+        >
+          <IconUndo />
+        </button>
+        <button
+          className="btn btn-ghost px-2"
+          onClick={redo}
+          disabled={!canRedo}
+          title="重做 (Ctrl+Shift+Z)"
+          style={{ opacity: canRedo ? 1 : 0.32 }}
+        >
+          <IconRedo />
+        </button>
+
         <button className="btn btn-ghost" onClick={() => setSearchOpen(true)} title="搜索 (Ctrl+K)">
           <IconSearch />
           <span className="hidden md:inline">搜索</span>

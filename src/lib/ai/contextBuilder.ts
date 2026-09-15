@@ -1,5 +1,6 @@
 import type { ContextSettings, Message, Project, SearchSource, TopicNode } from '../../types';
 import { formatSourcesForPrompt } from '../search';
+import { getAncestors } from '../tree';
 import { SYSTEM_PROMPT, type ChatMessage } from './types';
 
 function truncate(text: string, max: number): string {
@@ -8,18 +9,7 @@ function truncate(text: string, max: number): string {
   return `${clean.slice(0, max)}…`;
 }
 
-export function ancestorPath(nodes: TopicNode[], nodeId: string): TopicNode[] {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const path: TopicNode[] = [];
-  const seen = new Set<string>();
-  let current = byId.get(nodeId);
-  while (current && !seen.has(current.id)) {
-    seen.add(current.id);
-    path.unshift(current);
-    current = current.parentId ? byId.get(current.parentId) : undefined;
-  }
-  return path;
-}
+export const ancestorPath = getAncestors;
 
 export interface BuildContextInput {
   project: Project;
