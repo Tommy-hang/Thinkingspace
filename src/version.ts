@@ -3,4 +3,5 @@
  * 版本号遵循产品路线：V0.4 保留给「登录 + 云同步」，在此之前都属于 V0.3.x 的体验打磨。
  */
 export const APP_VERSION = 'V0.3.5';
-export const APP_VERSION_NOTE = '推理工作空间：当前理解 / 待解决问题 / 探索方向建议 / 综合理解 / @ 引用主题';
+export const APP_VERSION_NOTE =
+  '推理工作空间 + 修复：待解决问题改为项目级共享、右键菜单新增创建/删除子分支';

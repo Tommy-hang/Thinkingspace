@@ -189,6 +189,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const stopStreaming = useStore((s) => s.stopStreaming);
   const createBranch = useStore((s) => s.createBranch);
   const focusNode = useStore((s) => s.focusNode);
+  const focusNodeAt = useStore((s) => s.focusNodeAt);
   const useModel = useStore((s) => s.useModel);
   const togglePin = useStore((s) => s.togglePin);
   const refreshSummary = useStore((s) => s.refreshSummary);
@@ -247,7 +248,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   }, [nodeMessages]);
 
   const childNodes = useMemo(() => nodes.filter((n) => n.parentId === nodeId), [nodes, nodeId]);
-  const openQuestions = node?.openQuestions ?? [];
+  // 待解决问题属于整个项目：每张卡片看到的是同一份清单
+  const openQuestions = project?.openQuestions ?? [];
   const unresolvedCount = openQuestions.filter((q) => !q.resolved).length;
 
   const mentionQuery = useMemo(() => {
@@ -378,7 +380,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const submitQuestion = () => {
     const text = questionDraft.trim();
     if (!text) return;
-    addOpenQuestion(nodeId, text);
+    // 记录来源卡片，方便以后从这里一键跳回去
+    addOpenQuestion(text, nodeId);
     setQuestionDraft('');
   };
 
@@ -783,40 +786,58 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                           把还没搞懂的问题记在这里，之后可以从左侧「待解决问题」找回。
                         </p>
                       )}
-                      {openQuestions.map((q) => (
-                        <div key={q.id} className="group/q flex items-start gap-2">
-                          <button
-                            className="mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px]"
-                            style={{
-                              border: `1px solid ${
-                                q.resolved ? 'var(--accent)' : 'var(--border-strong)'
-                              }`,
-                              background: q.resolved ? 'var(--accent)' : 'transparent',
-                            }}
-                            title={q.resolved ? '标记为未解决' : '标记为已解决'}
-                            onClick={() => toggleOpenQuestion(nodeId, q.id)}
-                          >
-                            {q.resolved && <IconCheck width={10} height={10} />}
-                          </button>
-                          <span
-                            className="flex-1 text-[12.5px] leading-relaxed"
-                            style={{
-                              color: q.resolved ? 'var(--faint)' : 'var(--text)',
-                              textDecoration: q.resolved ? 'line-through' : 'none',
-                            }}
-                          >
-                            {q.text}
-                          </span>
-                          <button
-                            className="shrink-0 opacity-0 transition-opacity group-hover/q:opacity-100"
-                            style={{ color: 'var(--faint)' }}
-                            title="删除"
-                            onClick={() => removeOpenQuestion(nodeId, q.id)}
-                          >
-                            <IconX width={12} height={12} />
-                          </button>
-                        </div>
-                      ))}
+                      {openQuestions.map((q) => {
+                        const source = q.sourceNodeId
+                          ? nodes.find((n) => n.id === q.sourceNodeId)
+                          : undefined;
+                        const fromHere = q.sourceNodeId === nodeId;
+                        return (
+                          <div key={q.id} className="group/q flex items-start gap-2">
+                            <button
+                              className="mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px]"
+                              style={{
+                                border: `1px solid ${
+                                  q.resolved ? 'var(--accent)' : 'var(--border-strong)'
+                                }`,
+                                background: q.resolved ? 'var(--accent)' : 'transparent',
+                              }}
+                              title={q.resolved ? '标记为未解决' : '标记为已解决'}
+                              onClick={() => toggleOpenQuestion(q.id)}
+                            >
+                              {q.resolved && <IconCheck width={10} height={10} />}
+                            </button>
+                            <button
+                              className="min-w-0 flex-1 text-left text-[12.5px] leading-relaxed"
+                              style={{
+                                color: q.resolved ? 'var(--faint)' : 'var(--text)',
+                                textDecoration: q.resolved ? 'line-through' : 'none',
+                              }}
+                              title={source ? `来自「${source.title}」，点击跳转` : undefined}
+                              onClick={() => {
+                                if (source) focusNodeAt(source.id, q.sourceMessageId);
+                              }}
+                            >
+                              {q.text}
+                              {source && !fromHere && (
+                                <span
+                                  className="ml-1.5 text-[10.5px]"
+                                  style={{ color: 'var(--accent)' }}
+                                >
+                                  · {source.title}
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              className="shrink-0 opacity-0 transition-opacity group-hover/q:opacity-100"
+                              style={{ color: 'var(--faint)' }}
+                              title="删除"
+                              onClick={() => removeOpenQuestion(q.id)}
+                            >
+                              <IconX width={12} height={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div className="mt-2 flex gap-1.5">
@@ -1219,9 +1240,12 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                       style={{ background: NODE_STATUS[n.status].color }}
                     />
                     <span className="flex-1 truncate">{n.title}</span>
-                    {(n.openQuestions ?? []).filter((q) => !q.resolved).length > 0 && (
-                      <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
-                        {(n.openQuestions ?? []).filter((q) => !q.resolved).length} 待解决
+                    {n.summary && (
+                      <span
+                        className="max-w-[120px] truncate text-[10px]"
+                        style={{ color: 'var(--faint)' }}
+                      >
+                        {n.summary}
                       </span>
                     )}
                   </MenuItem>

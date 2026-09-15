@@ -4,6 +4,7 @@ import { MenuItem } from './Popover';
 import { buildNodeUrl, copyText } from '../lib/link';
 import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
 import {
+  IconBranch,
   IconChevronDown,
   IconChevronRight,
   IconDownload,
@@ -12,6 +13,7 @@ import {
   IconEyeOff,
   IconLink,
   IconPin,
+  IconPlus,
   IconSpark,
   IconTrash,
 } from './icons';
@@ -36,6 +38,8 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   const hideChildren = useStore((s) => s.hideChildren);
   const unhideNode = useStore((s) => s.unhideNode);
   const deleteNode = useStore((s) => s.deleteNode);
+  const createChildBranch = useStore((s) => s.createChildBranch);
+  const deleteChildren = useStore((s) => s.deleteChildren);
   const focusNodeAt = useStore((s) => s.focusNodeAt);
 
   const [mode, setMode] = useState<Mode>('menu');
@@ -246,6 +250,16 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
 
+          <MenuItem
+            onClick={() => {
+              createChildBranch(node.id);
+              close();
+            }}
+          >
+            <IconPlus width={14} height={14} />
+            <span className="flex-1">创建子分支</span>
+          </MenuItem>
+
           {hasChildren && (
             <MenuItem
               onClick={() => {
@@ -297,6 +311,26 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
           )}
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
+
+          {hasChildren && (
+            <MenuItem
+              danger
+              onClick={() => {
+                const count = nodes.filter((n) => n.parentId === node.id).length;
+                if (
+                  confirm(
+                    `删除「${node.title}」下的全部 ${count} 个子分支？\n它们各自的后代与对话也会一并删除，且无法恢复。\n（这张卡片本身会保留）`,
+                  )
+                ) {
+                  deleteChildren(node.id);
+                  close();
+                }
+              }}
+            >
+              <IconBranch width={14} height={14} />
+              <span className="flex-1">删除子分支</span>
+            </MenuItem>
+          )}
 
           <MenuItem
             danger

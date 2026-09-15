@@ -63,11 +63,13 @@ export interface HistorySnapshot {
   activeProjectId: string | null;
 }
 
-/** 尚未解决的问题 —— 与「已获得的认知」同等重要 */
+/** 尚未解决的问题 —— 属于整个项目，在每张卡片里看到的是同一份清单 */
 export interface OpenQuestion {
   id: string;
   text: string;
   resolved?: boolean;
+  /** 这条问题来自哪个主题（用于标注来源与跳转） */
+  sourceNodeId?: string;
   sourceMessageId?: string;
   createdAt: number;
 }
@@ -83,6 +85,8 @@ export interface Project {
   id: string;
   title: string;
   summary: string;
+  /** 项目级「待解决问题」，所有卡片共享同一份 */
+  openQuestions?: OpenQuestion[];
   createdAt: number;
   updatedAt: number;
 }
@@ -111,8 +115,6 @@ export interface TopicNode {
   /** Merge Insights：由子分支综合而成的更高层理解 */
   insight?: string;
   insightUpdatedAt?: number;
-  /** 待解决问题 */
-  openQuestions?: OpenQuestion[];
   /** AI 建议的探索方向（挂在最后一条回答上） */
   suggestions?: BranchSuggestion[];
   suggestionsFor?: string;

@@ -216,6 +216,34 @@ try {
   );
   check('firstSentence 提取首句', mentionMod.firstSentence('这是第一句。这是第二句。') === '这是第一句');
 
+  // --- 待解决问题：旧版「存在主题上」迁移到「项目级共享」 ---
+  const storageMod = await server.ssrLoadModule('/src/lib/storage.ts');
+  const legacyProjects = [
+    { id: 'p1', title: 'P', summary: '', createdAt: 0, updatedAt: 0 },
+  ];
+  const legacyNodes = [
+    {
+      id: 'n1',
+      projectId: 'p1',
+      parentId: null,
+      title: 'N',
+      summary: '',
+      position: { x: 0, y: 0 },
+      status: 'active',
+      openQuestions: [{ id: 'q1', text: '为什么', createdAt: 0 }],
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  ];
+  const migrated = storageMod.migrateOpenQuestions(legacyProjects, legacyNodes);
+  check(
+    '旧版待解决问题迁移到项目级',
+    migrated.projects[0].openQuestions.length === 1 &&
+      migrated.projects[0].openQuestions[0].sourceNodeId === 'n1',
+  );
+  check('迁移后主题不再携带 openQuestions', migrated.nodes[0].openQuestions === undefined);
+  check('无旧数据时原样返回', storageMod.migrateOpenQuestions(legacyProjects, []).nodes.length === 0);
+
   const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
   check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
 

@@ -85,9 +85,11 @@ interface Actions {
   mergeInsights: (id: string) => Promise<void>;
   setSuggestions: (id: string, forMessageId: string, list: BranchSuggestion[]) => void;
   generateSuggestionsFor: (id: string) => Promise<void>;
-  addOpenQuestion: (nodeId: string, text: string, sourceMessageId?: string) => void;
-  toggleOpenQuestion: (nodeId: string, questionId: string) => void;
-  removeOpenQuestion: (nodeId: string, questionId: string) => void;
+  addOpenQuestion: (text: string, sourceNodeId?: string, sourceMessageId?: string) => void;
+  toggleOpenQuestion: (questionId: string) => void;
+  removeOpenQuestion: (questionId: string) => void;
+  createChildBranch: (parentId: string) => string;
+  deleteChildren: (parentId: string) => void;
   hideNode: (id: string) => void;
   hideChildren: (id: string) => void;
   unhideNode: (id: string) => void;
@@ -369,6 +371,39 @@ export const useStore = create<StoreState>((set, get) => ({
     return node.id;
   },
 
+  /** 从菜单直接新建一个子分支并进入它 */
+  createChildBranch: (parentId) => {
+    const parent = get().nodes.find((n) => n.id === parentId);
+    const id = get().createBranch(parentId, {
+      sourceNodeId: parentId,
+      parentContextSummary: parent?.summary,
+    });
+    if (id) get().focusNode(id);
+    return id;
+  },
+
+  /** 删除该节点下的所有子分支（含各自的后代） */
+  deleteChildren: (parentId) => {
+    pushHistory();
+    set((s) => {
+      const children = s.nodes.filter((n) => n.parentId === parentId).map((n) => n.id);
+      if (children.length === 0) return {};
+      const doomed = new Set<string>();
+      for (const childId of children) {
+        for (const id of collectSubtree(s.nodes, childId)) doomed.add(id);
+      }
+      return {
+        nodes: s.nodes.filter((n) => !doomed.has(n.id)),
+        edges: s.edges.filter((e) => !doomed.has(e.source) && !doomed.has(e.target)),
+        messages: s.messages.filter((m) => !doomed.has(m.nodeId)),
+        selectedNodeId:
+          s.selectedNodeId && doomed.has(s.selectedNodeId) ? null : s.selectedNodeId,
+        focusedNodeId:
+          s.focusedNodeId && doomed.has(s.focusedNodeId) ? null : s.focusedNodeId,
+      };
+    });
+  },
+
   updateNode: (id, patch) => {
     pushHistory(`node:${id}`);
     set((s) => ({
@@ -543,49 +578,65 @@ export const useStore = create<StoreState>((set, get) => ({
     get().setSuggestions(id, lastAssistant.id, list);
   },
 
-  addOpenQuestion: (nodeId, text, sourceMessageId) => {
+  /** 待解决问题属于整个项目，所有卡片看到的是同一份 */
+  addOpenQuestion: (text, sourceNodeId, sourceMessageId) => {
     const clean = text.trim();
     if (!clean) return;
+    const projectId = get().activeProjectId;
+    if (!projectId) return;
     pushHistory();
     set((s) => ({
-      nodes: s.nodes.map((n) =>
-        n.id === nodeId
+      projects: s.projects.map((p) =>
+        p.id === projectId
           ? {
-              ...n,
+              ...p,
               openQuestions: [
-                ...(n.openQuestions ?? []),
-                { id: uid('q_'), text: clean, sourceMessageId, createdAt: Date.now() },
+                ...(p.openQuestions ?? []),
+                {
+                  id: uid('q_'),
+                  text: clean,
+                  sourceNodeId,
+                  sourceMessageId,
+                  createdAt: Date.now(),
+                },
               ],
+              updatedAt: Date.now(),
             }
-          : n,
+          : p,
       ),
     }));
   },
 
-  toggleOpenQuestion: (nodeId, questionId) =>
+  toggleOpenQuestion: (questionId) => {
+    const projectId = get().activeProjectId;
+    if (!projectId) return;
     set((s) => ({
-      nodes: s.nodes.map((n) =>
-        n.id === nodeId
+      projects: s.projects.map((p) =>
+        p.id === projectId
           ? {
-              ...n,
-              openQuestions: (n.openQuestions ?? []).map((q) =>
+              ...p,
+              openQuestions: (p.openQuestions ?? []).map((q) =>
                 q.id === questionId ? { ...q, resolved: !q.resolved } : q,
               ),
             }
-          : n,
+          : p,
       ),
-    })),
+    }));
+  },
 
-  removeOpenQuestion: (nodeId, questionId) => {
+  removeOpenQuestion: (questionId) => {
+    const projectId = get().activeProjectId;
+    if (!projectId) return;
     pushHistory();
     set((s) => ({
-      nodes: s.nodes.map((n) =>
-        n.id === nodeId
+      projects: s.projects.map((p) =>
+        p.id === projectId
           ? {
-              ...n,
-              openQuestions: (n.openQuestions ?? []).filter((q) => q.id !== questionId),
+              ...p,
+              openQuestions: (p.openQuestions ?? []).filter((q) => q.id !== questionId),
+              updatedAt: Date.now(),
             }
-          : n,
+          : p,
       ),
     }));
   },

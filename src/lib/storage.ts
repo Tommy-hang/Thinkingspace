@@ -1,6 +1,7 @@
 import type {
   GraphEdge,
   Message,
+  OpenQuestion,
   PersistedData,
   Project,
   ProviderConfig,
@@ -296,10 +297,12 @@ export function loadData(): PersistedData {
       },
     };
 
+    const migrated = migrateOpenQuestions(parsed.projects ?? [], parsed.nodes ?? []);
+
     return {
       version: 1,
-      projects: parsed.projects ?? [],
-      nodes: parsed.nodes ?? [],
+      projects: migrated.projects,
+      nodes: migrated.nodes,
       edges: parsed.edges ?? [],
       messages: parsed.messages ?? [],
       settings,
@@ -309,6 +312,45 @@ export function loadData(): PersistedData {
     console.error('[ThinkingSpace] 读取本地数据失败，已回退到默认数据。', err);
     return createDefaultData();
   }
+}
+
+/**
+ * V0.3.5 早期把「待解决问题」存在各个主题上，导致不同卡片看到不同清单。
+ * 这里把它们合并到项目级，保证所有卡片显示同一份。
+ */
+export function migrateOpenQuestions(
+  projects: Project[],
+  nodes: TopicNode[],
+): { projects: Project[]; nodes: TopicNode[] } {
+  const hasLegacy = nodes.some((n) => {
+    const legacy = (n as { openQuestions?: OpenQuestion[] }).openQuestions;
+    return Array.isArray(legacy) && legacy.length > 0;
+  });
+  if (!hasLegacy) return { projects, nodes };
+
+  const nextProjects = projects.map((p) => ({
+    ...p,
+    openQuestions: [...(p.openQuestions ?? [])],
+  }));
+  const byId = new Map(nextProjects.map((p) => [p.id, p]));
+
+  const nextNodes = nodes.map((n) => {
+    const legacy = (n as { openQuestions?: OpenQuestion[] }).openQuestions;
+    if (Array.isArray(legacy) && legacy.length > 0) {
+      const project = byId.get(n.projectId);
+      if (project) {
+        project.openQuestions = [
+          ...(project.openQuestions ?? []),
+          ...legacy.map((q) => ({ ...q, sourceNodeId: q.sourceNodeId ?? n.id })),
+        ];
+      }
+    }
+    const copy = { ...n } as TopicNode & { openQuestions?: unknown };
+    delete copy.openQuestions;
+    return copy as TopicNode;
+  });
+
+  return { projects: nextProjects, nodes: nextNodes };
 }
 
 function mergeSearchProviders(saved?: SearchProviderConfig[]): SearchProviderConfig[] {

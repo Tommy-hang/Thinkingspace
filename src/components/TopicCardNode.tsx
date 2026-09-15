@@ -10,7 +10,13 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
   const status = NODE_STATUS[topic.status];
   const turns = Math.ceil(messageCount / 2);
   const intent = intentLabel(topic.intent);
-  const openCount = (topic.openQuestions ?? []).filter((q) => !q.resolved).length;
+  // 待解决问题是项目级的，每张卡片显示同一个总数
+  const openCount = useStore(
+    (s) =>
+      (s.projects.find((p) => p.id === topic.projectId)?.openQuestions ?? []).filter(
+        (q) => !q.resolved,
+      ).length,
+  );
 
   const openNodeMenu = useStore((s) => s.openNodeMenu);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
@@ -114,7 +120,7 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
           <span
             className="inline-flex items-center gap-0.5"
             style={{ color: 'var(--accent)' }}
-            title="待解决问题"
+            title={`全项目还有 ${openCount} 个待解决问题`}
           >
             ? {openCount}
           </span>
