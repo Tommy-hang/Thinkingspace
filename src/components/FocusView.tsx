@@ -23,7 +23,13 @@ import {
   IconTrash,
 } from './icons';
 import { buildNodeUrl, copyText } from '../lib/link';
-import { intentLabel } from '../lib/branchIntent';
+import {
+  INTENT_META,
+  INTENT_ORDER,
+  buildIntentQuestion,
+  intentLabel,
+} from '../lib/branchIntent';
+import type { BranchIntent } from '../types';
 
 interface FocusViewProps {
   nodeId: string;
@@ -183,6 +189,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const [customModel, setCustomModel] = useState('');
   const [input, setInput] = useState('');
   const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [selectionMode, setSelectionMode] = useState<'actions' | 'intent'>('actions');
+  const pendingDraft = useRef<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
@@ -209,7 +217,9 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
 
   useEffect(() => {
     setSelection(null);
-    setInput('');
+    setSelectionMode('actions');
+    setInput(pendingDraft.current ?? '');
+    pendingDraft.current = null;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [nodeId]);
@@ -264,6 +274,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     }
     const range = sel!.getRangeAt(0);
     const rect = range.getBoundingClientRect();
+    setSelectionMode('actions');
     setSelection({ text, x: rect.left + rect.width / 2, y: rect.top });
   };
 
@@ -283,11 +294,13 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const doBranch = () => {
+  const doBranch = (intent: BranchIntent) => {
     if (!selection) return;
     const text = selection.text;
     setSelection(null);
+    setSelectionMode('actions');
     window.getSelection()?.removeAllRanges();
+
     const id = createBranch(
       nodeId,
       {
@@ -296,8 +309,19 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
         parentContextSummary: node.summary,
       },
       text.length > 26 ? `${text.slice(0, 26)}…` : text,
+      intent,
     );
-    if (id) focusNode(id);
+    if (!id) return;
+
+    focusNode(id);
+    if (intent === 'custom') {
+      // 自定义问题：把初始问题放进输入框，让用户先修改再发送
+      pendingDraft.current = buildIntentQuestion('custom', text);
+      setInput(pendingDraft.current);
+      pendingDraft.current = null;
+    } else {
+      void sendMessage(id, buildIntentQuestion(intent, text));
+    }
   };
 
   const rectStyle: React.CSSProperties =
@@ -765,22 +789,72 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
 
       {selection && (
         <div
-          className="panel ts-fade-up fixed z-[60] flex gap-0.5 rounded-lg p-0.5"
+          className="panel ts-fade-up fixed z-[60] rounded-lg"
           style={{
-            left: Math.max(12, Math.min(selection.x - 90, window.innerWidth - 200)),
-            top: Math.max(12, selection.y - 44),
+            left: Math.max(
+              12,
+              Math.min(
+                selection.x - (selectionMode === 'intent' ? 95 : 90),
+                window.innerWidth - (selectionMode === 'intent' ? 210 : 200),
+              ),
+            ),
+            top: Math.max(12, selection.y - (selectionMode === 'intent' ? 240 : 44)),
             boxShadow: 'var(--shadow-lg)',
           }}
         >
-          <button className="btn btn-ghost !px-2.5 !py-1 !text-[12px]" onClick={doExplain}>
-            解释
-          </button>
-          <button className="btn btn-ghost !px-2.5 !py-1 !text-[12px]" onClick={doAsk}>
-            追问
-          </button>
-          <button className="btn btn-ghost !px-2.5 !py-1 !text-[12px]" onClick={doBranch}>
-            分支
-          </button>
+          {selectionMode === 'actions' ? (
+            <div className="flex gap-0.5 p-0.5">
+              <button className="btn btn-ghost !px-2.5 !py-1 !text-[12px]" onClick={doExplain}>
+                解释
+              </button>
+              <button className="btn btn-ghost !px-2.5 !py-1 !text-[12px]" onClick={doAsk}>
+                追问
+              </button>
+              <button
+                className="btn btn-ghost !px-2.5 !py-1 !text-[12px]"
+                onClick={() => setSelectionMode('intent')}
+              >
+                分支 ›
+              </button>
+            </div>
+          ) : (
+            <div className="w-[196px] p-1">
+              <button
+                className="mb-0.5 flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-[11px]"
+                style={{ color: 'var(--faint)' }}
+                onClick={() => setSelectionMode('actions')}
+              >
+                ‹ 返回
+              </button>
+              <div
+                className="px-2 pb-1 text-[10px] tracking-widest uppercase"
+                style={{ color: 'var(--faint)' }}
+              >
+                以什么方式探索
+              </div>
+              {INTENT_ORDER.map((intent) => (
+                <button
+                  key={intent}
+                  className="flex w-full flex-col rounded-md px-2 py-1.5 text-left transition-colors"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      'color-mix(in srgb, var(--text) 7%, transparent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                  onClick={() => doBranch(intent)}
+                >
+                  <span className="text-[12.5px] font-medium" style={{ color: 'var(--text)' }}>
+                    {INTENT_META[intent].label}
+                  </span>
+                  <span className="text-[10.5px]" style={{ color: 'var(--faint)' }}>
+                    {INTENT_META[intent].hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
