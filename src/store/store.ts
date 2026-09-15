@@ -31,6 +31,7 @@ import {
   getCurrentUser,
   onAuthChange,
   sendPasswordReset,
+  signInWithGitHub,
   signInWithPassword,
   signOutCloud,
   signUpWithPassword,
@@ -161,6 +162,7 @@ interface Actions {
   initCloud: () => Promise<void>;
   cloudSignUp: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
   cloudSignIn: (email: string, password: string) => Promise<void>;
+  cloudSignInGitHub: () => Promise<void>;
   cloudSignOut: () => Promise<void>;
   cloudSyncNow: () => Promise<void>;
   cloudSendReset: (email: string) => Promise<void>;
@@ -1189,13 +1191,37 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ cloudStatus: 'signed-out' });
     }
 
-    // 令牌失效或登出时回到未登录状态
+    // 处理两类情况：
+    // 1) GitHub 授权跳转回来后，这里会收到登录事件
+    // 2) 令牌失效或主动登出
     onAuthChange((next) => {
+      const current = get().cloudUser;
+
       if (!next) {
         resetCloudEngine(null);
         set({ cloudUser: null, cloudStatus: 'signed-out' });
+        return;
+      }
+
+      if (!current || current.id !== next.id) {
+        resetCloudEngine(next.id);
+        set({ cloudUser: next });
+        void performFullSync();
       }
     });
+  },
+
+  cloudSignInGitHub: async () => {
+    set({ cloudStatus: 'syncing', cloudNotice: null });
+    try {
+      await signInWithGitHub();
+      // 页面会跳转到 GitHub，回来后由 onAuthChange 接管
+    } catch (err) {
+      set({
+        cloudStatus: 'error',
+        cloudNotice: err instanceof Error ? err.message : String(err),
+      });
+    }
   },
 
   cloudSignUp: async (email, password) => {

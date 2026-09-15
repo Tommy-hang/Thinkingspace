@@ -51,6 +51,23 @@ export async function signInWithPassword(email: string, password: string): Promi
   return user;
 }
 
+/**
+ * 使用 GitHub 账号登录。
+ * 会跳转到 GitHub 授权页，回来后 supabase-js 自动把会话写进 URL，
+ * 由 onAuthStateChange 接管。
+ */
+export async function signInWithGitHub(): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('云端未配置');
+
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: { redirectTo, scopes: 'read:user user:email' },
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function signOutCloud(): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;

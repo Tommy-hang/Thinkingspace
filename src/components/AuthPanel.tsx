@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
-import { IconCheck, IconRefresh } from './icons';
+import { IconCheck, IconGitHub, IconRefresh } from './icons';
 
 const STATUS_TEXT: Record<string, string> = {
   disabled: '未启用',
@@ -18,6 +18,7 @@ export function AuthPanel() {
   const cloudUser = useStore((s) => s.cloudUser);
   const cloudNotice = useStore((s) => s.cloudNotice);
   const cloudSignIn = useStore((s) => s.cloudSignIn);
+  const cloudSignInGitHub = useStore((s) => s.cloudSignInGitHub);
   const cloudSignUp = useStore((s) => s.cloudSignUp);
   const cloudSignOut = useStore((s) => s.cloudSignOut);
   const cloudSyncNow = useStore((s) => s.cloudSyncNow);
@@ -198,6 +199,32 @@ export function AuthPanel() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          <button
+            className="btn w-full !py-2.5 !text-[13.5px] font-medium"
+            style={{
+              background: '#24292f',
+              color: '#ffffff',
+              border: '1px solid #24292f',
+            }}
+            disabled={busy || cloudStatus === 'syncing'}
+            onClick={() => void cloudSignInGitHub()}
+          >
+            <IconGitHub width={17} height={17} />
+            使用 GitHub 账号登录
+          </button>
+
+          <p className="text-center text-[11.5px]" style={{ color: 'var(--faint)' }}>
+            推荐：不用记密码，也不用收验证邮件，点一下授权即可
+          </p>
+
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
+            <span className="text-[11px]" style={{ color: 'var(--faint)' }}>
+              或使用邮箱
+            </span>
+            <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
+          </div>
+
           <div className="flex gap-1.5">
             {(['signin', 'signup'] as const).map((value) => (
               <button
