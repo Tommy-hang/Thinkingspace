@@ -212,6 +212,19 @@ export const IconHelp = (p: P) => (
   </svg>
 );
 
+export const IconUser = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="8" r="3.6" />
+    <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+  </svg>
+);
+
+export const IconCloud = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6 9.5 3.75 3.75 0 0 0 7 18z" />
+  </svg>
+);
+
 export const IconGlobe = (p: P) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="9" />

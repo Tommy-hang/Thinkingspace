@@ -8,6 +8,7 @@ import { FocusView } from './components/FocusView';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
+import { AuthPanel } from './components/AuthPanel';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
@@ -20,6 +21,11 @@ export default function App() {
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const undo = useStore((s) => s.undo);
   const redo = useStore((s) => s.redo);
+  const initCloud = useStore((s) => s.initCloud);
+
+  useEffect(() => {
+    void initCloud();
+  }, [initCloud]);
 
   const [origin, setOrigin] = useState<{ id: string; rect: DOMRect | null } | null>(null);
 
@@ -128,6 +134,7 @@ export default function App() {
       <SearchPanel />
       <SettingsPanel />
       <HelpPanel />
+      <AuthPanel />
     </div>
   );
 }

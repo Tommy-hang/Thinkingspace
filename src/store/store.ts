@@ -26,6 +26,25 @@ import { getVisibleNodes } from '../lib/tree';
 import { intentToEdgeType } from '../lib/branchIntent';
 import { generateDigest, generateInsight, generateSuggestions } from '../lib/reasoning';
 import { generateKnowledgeMap, type KnowledgeSourceItem } from '../lib/knowledgeMap';
+import { cloudConfigured } from '../lib/cloud/client';
+import {
+  getCurrentUser,
+  onAuthChange,
+  sendPasswordReset,
+  signInWithPassword,
+  signOutCloud,
+  signUpWithPassword,
+  type CloudUser,
+} from '../lib/cloud/auth';
+import {
+  fullSync,
+  hasCloudSession,
+  pushDirty,
+  removeRemoteProject,
+  resetCloudEngine,
+  syncSettingsToCloud,
+  type WorkspaceSnapshot,
+} from '../lib/cloud/engine';
 import {
   loadData,
   loadSecrets,
@@ -54,6 +73,11 @@ interface UIState {
   helpOpen: boolean;
   knowledgeOpen: boolean;
   knowledgeProgress: { phase: 'summaries' | 'map'; current: number; total: number } | null;
+
+  cloudUser: CloudUser | null;
+  cloudStatus: 'disabled' | 'signed-out' | 'syncing' | 'synced' | 'error';
+  cloudNotice: string | null;
+  authOpen: boolean;
 }
 
 interface HistoryState {
@@ -128,6 +152,15 @@ interface Actions {
   setKnowledgeOpen: (open: boolean) => void;
   locateNode: (id: string) => void;
   buildKnowledgeMap: () => Promise<void>;
+
+  setAuthOpen: (open: boolean) => void;
+  initCloud: () => Promise<void>;
+  cloudSignUp: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
+  cloudSignIn: (email: string, password: string) => Promise<void>;
+  cloudSignOut: () => Promise<void>;
+  cloudSyncNow: () => Promise<void>;
+  cloudSendReset: (email: string) => Promise<void>;
+  setCloudNotice: (notice: string | null) => void;
   setSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -197,6 +230,79 @@ function resetHistoryCoalesce() {
   lastHistoryAt = 0;
 }
 
+/* ============================ 云端同步（薄层，业务代码无感知） ============================ */
+
+function localSnapshot(): WorkspaceSnapshot {
+  const s = useStore.getState();
+  return {
+    projects: s.projects,
+    nodes: s.nodes,
+    edges: s.edges,
+    messages: s.messages,
+    settings: s.settings,
+  };
+}
+
+async function performFullSync(): Promise<void> {
+  useStore.setState({ cloudStatus: 'syncing', cloudNotice: null });
+  try {
+    const outcome = await fullSync(localSnapshot());
+    useStore.setState({
+      projects: outcome.snapshot.projects,
+      nodes: outcome.snapshot.nodes,
+      edges: outcome.snapshot.edges,
+      messages: outcome.snapshot.messages,
+      settings: outcome.snapshot.settings,
+      cloudStatus: 'synced',
+      cloudNotice: outcome.warnings.length > 0 ? outcome.warnings.join(' ') : null,
+    });
+  } catch (err) {
+    useStore.setState({
+      cloudStatus: 'error',
+      cloudNotice: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let pushInFlight = false;
+let settingsDirty = false;
+
+function schedulePush(settingsChanged: boolean): void {
+  if (!hasCloudSession()) return;
+  if (settingsChanged) settingsDirty = true;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    void flushPush();
+  }, 900);
+}
+
+async function flushPush(): Promise<void> {
+  if (!hasCloudSession() || pushInFlight) return;
+  pushInFlight = true;
+  useStore.setState({ cloudStatus: 'syncing' });
+  try {
+    const snapshot = localSnapshot();
+    const result = await pushDirty(snapshot);
+    if (settingsDirty) {
+      await syncSettingsToCloud(snapshot.settings);
+      settingsDirty = false;
+    }
+    useStore.setState({
+      cloudStatus: 'synced',
+      cloudNotice: result.warnings.length > 0 ? result.warnings.join(' ') : null,
+    });
+  } catch (err) {
+    useStore.setState({
+      cloudStatus: 'error',
+      cloudNotice: err instanceof Error ? err.message : String(err),
+    });
+  } finally {
+    pushInFlight = false;
+  }
+}
+
 function collectSubtree(nodes: TopicNode[], rootId: string): Set<string> {
   const ids = new Set<string>([rootId]);
   let changed = true;
@@ -227,6 +333,10 @@ export const useStore = create<StoreState>((set, get) => ({
   helpOpen: false,
   knowledgeOpen: false,
   knowledgeProgress: null,
+  cloudUser: null,
+  cloudStatus: cloudConfigured ? 'signed-out' : 'disabled',
+  cloudNotice: null,
+  authOpen: false,
   searchOpen: false,
   settingsOpen: false,
   sidebarOpen: true,
@@ -294,6 +404,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
   deleteProject: (id) => {
     pushHistory();
+    if (hasCloudSession()) {
+      void removeRemoteProject(id).catch(() => {
+        /* 云端删除失败时，本地仍然删除；下次同步会再试 */
+      });
+    }
     set((s) => {
       const nodeIds = new Set(s.nodes.filter((n) => n.projectId === id).map((n) => n.id));
       const projects = s.projects.filter((p) => p.id !== id);
@@ -1032,6 +1147,92 @@ export const useStore = create<StoreState>((set, get) => ({
   setHelpOpen: (open) => set({ helpOpen: open }),
   setKnowledgeOpen: (open) => set({ knowledgeOpen: open }),
 
+  setAuthOpen: (open) => set({ authOpen: open }),
+  setCloudNotice: (notice) => set({ cloudNotice: notice }),
+
+  initCloud: async () => {
+    if (!cloudConfigured) {
+      set({ cloudStatus: 'disabled' });
+      return;
+    }
+    set({ cloudStatus: 'signed-out' });
+
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        resetCloudEngine(user.id);
+        set({ cloudUser: user });
+        await performFullSync();
+      }
+    } catch {
+      set({ cloudStatus: 'signed-out' });
+    }
+
+    // 令牌失效或登出时回到未登录状态
+    onAuthChange((next) => {
+      if (!next) {
+        resetCloudEngine(null);
+        set({ cloudUser: null, cloudStatus: 'signed-out' });
+      }
+    });
+  },
+
+  cloudSignUp: async (email, password) => {
+    set({ cloudStatus: 'syncing', cloudNotice: null });
+    try {
+      const result = await signUpWithPassword(email, password);
+      if (result.user) {
+        resetCloudEngine(result.user.id);
+        set({ cloudUser: result.user });
+        await performFullSync();
+      } else {
+        set({ cloudStatus: 'signed-out' });
+      }
+      return { needsEmailConfirm: result.needsEmailConfirm };
+    } catch (err) {
+      set({
+        cloudStatus: 'error',
+        cloudNotice: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  },
+
+  cloudSignIn: async (email, password) => {
+    set({ cloudStatus: 'syncing', cloudNotice: null });
+    try {
+      const user = await signInWithPassword(email, password);
+      resetCloudEngine(user.id);
+      set({ cloudUser: user });
+      await performFullSync();
+    } catch (err) {
+      set({
+        cloudStatus: 'error',
+        cloudNotice: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  },
+
+  cloudSignOut: async () => {
+    try {
+      await signOutCloud();
+    } catch {
+      /* 忽略 */
+    }
+    resetCloudEngine(null);
+    set({ cloudUser: null, cloudStatus: 'signed-out', cloudNotice: null });
+  },
+
+  cloudSyncNow: async () => {
+    if (!hasCloudSession()) return;
+    await performFullSync();
+  },
+
+  cloudSendReset: async (email) => {
+    await sendPasswordReset(email);
+  },
+
   locateNode: (id) => {
     const node = get().nodes.find((n) => n.id === id);
     if (!node) return;
@@ -1225,6 +1426,15 @@ export const useStore = create<StoreState>((set, get) => ({
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** 只在这些「数据切片」真的变化时才触发保存与云端同步 */
+const lastSaved = {
+  projects: null as unknown,
+  nodes: null as unknown,
+  edges: null as unknown,
+  messages: null as unknown,
+  settings: null as unknown,
+};
+
 useStore.subscribe((state) => {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -1239,4 +1449,20 @@ useStore.subscribe((state) => {
       recentNodeIds: state.recentNodeIds,
     });
   }, 350);
+
+  const changed =
+    state.projects !== lastSaved.projects ||
+    state.nodes !== lastSaved.nodes ||
+    state.edges !== lastSaved.edges ||
+    state.messages !== lastSaved.messages;
+  const settingsChanged = state.settings !== lastSaved.settings;
+
+  if (changed || settingsChanged) {
+    lastSaved.projects = state.projects;
+    lastSaved.nodes = state.nodes;
+    lastSaved.edges = state.edges;
+    lastSaved.messages = state.messages;
+    lastSaved.settings = state.settings;
+    schedulePush(settingsChanged);
+  }
 });

@@ -66,7 +66,10 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
   - **V0.3.4**：使用说明面板 / AI 按核心知识点自动生成标题 / 卡片与侧栏树右键菜单 / 隐藏自身与隐藏子分支 ✅
   - **V0.3.5**：推理工作空间 —— 当前理解（Topic Summary）/ 待解决问题（Open Questions）/ AI 探索方向建议 / 综合理解（Merge Insights）/ @ 引用主题 ✅
   - **V0.3.6**：知识地图 —— 由全部卡片的「当前理解」生成整个项目的知识点思维导图，知识点下方标注来源卡片并可点击定位 ✅
-- **V0.4 云端**：Supabase / Auth / 云同步 / RLS（未开始，版本号保留给登录系统）
+- **V0.4 云端**：Supabase Auth（邮箱注册/登录）+ 项目云同步 + RLS 行级隔离（进行中）
+  - 配置：`.env.local` 填 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`；GitHub Actions 用同名 Secrets
+  - 建表：`supabase/schema.sql` 粘到 Supabase SQL Editor 执行
+  - 设计：内容按项目整体存 `content jsonb`（单人/小团队场景，简单可靠）；同步在 `src/lib/cloud/engine.ts` 一层内，业务代码无感知
 - **V0.5 公开测试**：BYOK / Provider 管理 / 限流 / 监控（未开始）
 
 ## 安全规则

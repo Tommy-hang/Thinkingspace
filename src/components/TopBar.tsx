@@ -19,6 +19,7 @@ import {
   IconTrash,
   IconUndo,
   IconUpload,
+  IconUser,
 } from './icons';
 
 function safeName(name: string): string {
@@ -42,6 +43,9 @@ export function TopBar() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setKnowledgeOpen = useStore((s) => s.setKnowledgeOpen);
+  const setAuthOpen = useStore((s) => s.setAuthOpen);
+  const cloudUser = useStore((s) => s.cloudUser);
+  const cloudStatus = useStore((s) => s.cloudStatus);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -273,6 +277,47 @@ export function TopBar() {
         >
           {settings.theme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>
+        <button
+          className="btn btn-ghost"
+          onClick={() => setAuthOpen(true)}
+          title={
+            cloudUser
+              ? `已登录 ${cloudUser.email} · ${
+                  cloudStatus === 'synced'
+                    ? '已同步'
+                    : cloudStatus === 'syncing'
+                      ? '同步中'
+                      : cloudStatus === 'error'
+                        ? '同步出错'
+                        : '未登录'
+                }`
+              : cloudStatus === 'disabled'
+                ? '云端未启用（内容仅保存在本机）'
+                : '登录 / 注册（可跨设备同步）'
+          }
+          style={{ color: cloudUser ? 'var(--accent)' : undefined }}
+        >
+          <IconUser />
+          {cloudUser && (
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                background:
+                  cloudStatus === 'synced'
+                    ? '#16a34a'
+                    : cloudStatus === 'syncing'
+                      ? 'var(--accent)'
+                      : cloudStatus === 'error'
+                        ? '#dc2626'
+                        : 'var(--border-strong)',
+              }}
+            />
+          )}
+          <span className="hidden md:inline">
+            {cloudUser ? '账号' : cloudStatus === 'disabled' ? '本机模式' : '登录'}
+          </span>
+        </button>
+
         <button className="btn btn-ghost" onClick={() => setHelpOpen(true)} title="使用说明">
           <IconHelp />
         </button>

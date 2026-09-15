@@ -113,6 +113,8 @@ export interface Project {
   openQuestions?: OpenQuestion[];
   /** 由全部卡片的「当前理解」生成的知识点思维导图 */
   knowledgeMap?: KnowledgeMap;
+  /** 上次同步时云端的版本号（仅本地记录，用于发现冲突） */
+  cloudRevision?: number;
   createdAt: number;
   updatedAt: number;
 }
