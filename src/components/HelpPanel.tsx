@@ -122,6 +122,11 @@ export function HelpPanel() {
           每个知识点下面会列出它来自哪几张卡片。点卡片名 → 关闭地图并定位到那张卡片。
         </Row>
         <Row label="重新生成">卡片有新增后，点右上角「重新生成」即可刷新整张图。</Row>
+        <Row label="导出 PDF">
+          点右上角「导出 PDF」，浏览器会打开打印窗口。在「目标打印机 / 目的地」里选择
+          <strong>「另存为 PDF」</strong>，再点保存即可。
+          导出的是<strong>矢量图</strong>，放大不会模糊；建议纸张方向选「横向」。
+        </Row>
       </Section>
 
       <Section title="探索方向与主题引用">

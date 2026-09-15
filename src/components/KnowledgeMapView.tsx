@@ -14,8 +14,9 @@ import {
 import { useStore } from '../store/store';
 import type { KnowledgeFlowNode } from '../types';
 import { flattenKnowledge } from '../lib/knowledgeMap';
+import { buildKnowledgeSvg, printSvg } from '../lib/knowledgeExport';
 import { layoutTree } from '../lib/layout';
-import { IconMap, IconRefresh, IconSpark, IconX } from './icons';
+import { IconDownload, IconMap, IconRefresh, IconSpark, IconX } from './icons';
 
 function KnowledgeNode({ data }: NodeProps<KnowledgeFlowNode>) {
   const locateNode = useStore((s) => s.locateNode);
@@ -141,6 +142,24 @@ export function KnowledgeMapView() {
 
   const totalPoints = flat.length;
 
+  const handleExportPdf = () => {
+    if (!map) return;
+    try {
+      const svg = buildKnowledgeSvg({
+        projectTitle: project.title,
+        root: map.root,
+        resolveSources: (ids) =>
+          ids
+            .map((id) => nodes.find((n) => n.id === id)?.title)
+            .filter((title): title is string => Boolean(title)),
+        generatedAt: map.generatedAt,
+      });
+      printSvg(svg, `${project.title} - 知识地图`);
+    } catch (err) {
+      alert(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col" style={{ background: 'var(--bg)' }}>
       <header
@@ -168,6 +187,16 @@ export function KnowledgeMapView() {
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
+          {map && !progress && (
+            <button
+              className="btn btn-outline"
+              title="导出为 PDF：会打开打印窗口，在「目标打印机」里选择「另存为 PDF」"
+              onClick={handleExportPdf}
+            >
+              <IconDownload width={14} height={14} />
+              导出 PDF
+            </button>
+          )}
           <button
             className="btn btn-outline"
             disabled={Boolean(progress)}

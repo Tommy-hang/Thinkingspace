@@ -270,6 +270,20 @@ try {
   });
   check('generateKnowledgeMap 离线回退可用', aiMap.root.children.length === 2);
 
+  const kexpMod = await server.ssrLoadModule('/src/lib/knowledgeExport.ts');
+  const svg = kexpMod.buildKnowledgeSvg({
+    projectTitle: 'Transformer 学习',
+    root: localMap.root,
+    resolveSources: (ids) =>
+      ids.map((id) => (id === 'n1' ? '注意力机制' : id === 'n2' ? '位置编码' : id)),
+    generatedAt: 0,
+  });
+  check('知识地图可导出 SVG', svg.startsWith('<svg') && svg.includes('</svg>'));
+  check('SVG 含知识点文字', svg.includes('注意力机制'));
+  check('SVG 含来源卡片', svg.includes('来源') || svg.includes('注意力机制'));
+  check('SVG 含父子连线', svg.includes('<path'));
+  check('SVG 带 viewBox 可缩放', svg.includes('viewBox='));
+
   const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
   check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
 
