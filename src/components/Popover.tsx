@@ -4,10 +4,17 @@ interface PopoverProps {
   button: ReactNode;
   children: (close: () => void) => ReactNode;
   align?: 'left' | 'right';
+  placement?: 'bottom' | 'top';
   width?: number;
 }
 
-export function Popover({ button, children, align = 'left', width = 220 }: PopoverProps) {
+export function Popover({
+  button,
+  children,
+  align = 'left',
+  placement = 'bottom',
+  width = 220,
+}: PopoverProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -32,7 +39,9 @@ export function Popover({ button, children, align = 'left', width = 220 }: Popov
       <div onClick={() => setOpen((o) => !o)}>{button}</div>
       {open && (
         <div
-          className="panel ts-fade-up absolute z-40 mt-2 overflow-hidden rounded-xl p-1.5"
+          className={`panel ts-fade-up absolute z-40 overflow-hidden rounded-xl p-1.5 ${
+            placement === 'top' ? 'bottom-full mb-2' : 'mt-2'
+          }`}
           style={{
             [align === 'left' ? 'left' : 'right']: 0,
             minWidth: width,

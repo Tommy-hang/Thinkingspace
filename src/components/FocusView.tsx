@@ -1,13 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
-import { NODE_STATUS, type NodeStatus, type Message } from '../types';
+import {
+  NODE_STATUS,
+  type Message,
+  type ModelPreset,
+  type NodeStatus,
+  type ThinkingEffort,
+} from '../types';
 import { ancestorPath } from '../lib/ai/contextBuilder';
 import { Popover, MenuItem } from './Popover';
+import { Markdown } from './Markdown';
 import {
   IconBranch,
   IconCheck,
   IconChevronLeft,
+  IconGlobe,
   IconSend,
+  IconSpark,
   IconStop,
   IconTrash,
 } from './icons';
@@ -24,53 +33,121 @@ interface SelectionState {
   y: number;
 }
 
-function renderInline(text: string): ReactNode[] {
-  const parts: ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0;
-  let key = 0;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text))) {
-    if (match.index > last) parts.push(text.slice(last, match.index));
-    const token = match[0];
-    if (token.startsWith('**')) {
-      parts.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
-    } else {
-      parts.push(
-        <code
-          key={key++}
-          className="rounded px-1 py-0.5 text-[0.9em]"
-          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+const EFFORT_LABEL: Record<ThinkingEffort, string> = {
+  low: '低',
+  high: '高',
+  max: '最高',
+};
+
+function ThinkingBlock({ reasoning, pending }: { reasoning: string; pending?: boolean }) {
+  const [open, setOpen] = useState(Boolean(pending));
+
+  useEffect(() => {
+    setOpen(Boolean(pending));
+  }, [pending]);
+
+  return (
+    <div
+      className="mb-3 overflow-hidden rounded-xl"
+      style={{
+        border: '1px solid var(--border)',
+        background: 'var(--panel-2)',
+      }}
+    >
+      <button
+        className="flex w-full items-center gap-2 px-3 py-2 text-[12px] transition-colors"
+        style={{ color: 'var(--muted)' }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <IconSpark width={13} height={13} />
+        <span>{pending ? '正在深度思考…' : '已深度思考'}</span>
+        <span className="ml-auto text-[11px]" style={{ color: 'var(--faint)' }}>
+          {open ? '收起' : '展开'}
+        </span>
+      </button>
+      {open && (
+        <div
+          className="ts-scroll ts-markdown max-h-[320px] overflow-y-auto px-3 pb-3 text-[12.5px]"
+          style={{ borderTop: '1px solid var(--border)', color: 'var(--muted)', paddingTop: 10 }}
         >
-          {token.slice(1, -1)}
-        </code>,
-      );
-    }
-    last = match.index + token.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts;
+          <Markdown content={reasoning} />
+        </div>
+      )}
+    </div>
+  );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function SourceList({ sources }: { sources: NonNullable<Message['sources']> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 pt-2.5" style={{ borderTop: '1px solid var(--border)' }}>
+      <button
+        className="flex items-center gap-1.5 text-[11.5px] font-medium"
+        style={{ color: 'var(--muted)' }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <IconGlobe width={12} height={12} />
+        参考来源 · {sources.length}
+        <span style={{ color: 'var(--faint)' }}>{open ? '收起' : '展开'}</span>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-col gap-1">
+          {sources.map((s, i) => (
+            <a
+              key={`${s.url}-${i}`}
+              href={s.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="truncate text-[11.5px] hover:underline"
+              style={{ color: 'var(--accent)' }}
+              title={s.title}
+            >
+              [{i + 1}] {s.title || s.url}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({ message, searching }: { message: Message; searching?: boolean }) {
   const isUser = message.role === 'user';
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className="ts-prose max-w-[min(720px,88%)] rounded-2xl px-4 py-3 text-[14px]"
+        className={isUser ? 'ts-prose' : 'ts-markdown-host'}
         style={{
+          maxWidth: 'min(760px, 92%)',
+          borderRadius: 16,
+          padding: '12px 16px',
+          fontSize: 14,
           background: isUser ? 'var(--accent)' : 'var(--panel)',
           color: isUser ? 'var(--accent-text)' : 'var(--text)',
           border: isUser ? '1px solid transparent' : '1px solid var(--border)',
           borderColor: message.error ? '#dc2626' : undefined,
         }}
       >
-        {message.content ? (
-          <div className={message.pending ? 'ts-caret' : ''}>{renderInline(message.content)}</div>
-        ) : message.pending ? (
-          <span className="ts-caret text-[13px]" style={{ color: 'var(--muted)' }}>
-            正在思考
+        {!isUser && message.reasoning ? (
+          <ThinkingBlock reasoning={message.reasoning} pending={message.pending} />
+        ) : null}
+
+        {isUser ? (
+          message.content
+        ) : message.content ? (
+          <Markdown content={message.content} />
+        ) : searching ? (
+          <span className="text-[13px]" style={{ color: 'var(--muted)' }}>
+            🔍 正在检索网页…
           </span>
+        ) : message.pending && !message.reasoning ? (
+          <span className="ts-caret text-[13px]" style={{ color: 'var(--muted)' }}>
+            正在回答
+          </span>
+        ) : null}
+
+        {!isUser && message.sources && message.sources.length > 0 ? (
+          <SourceList sources={message.sources} />
         ) : null}
       </div>
     </div>
@@ -90,8 +167,15 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const stopStreaming = useStore((s) => s.stopStreaming);
   const createBranch = useStore((s) => s.createBranch);
   const focusNode = useStore((s) => s.focusNode);
+  const useModel = useStore((s) => s.useModel);
+  const thinking = useStore((s) => s.settings.thinking);
+  const search = useStore((s) => s.settings.search);
+  const searchingNodeId = useStore((s) => s.searchingNodeId);
+  const setThinking = useStore((s) => s.setThinking);
+  const setSearchEnabled = useStore((s) => s.setSearchEnabled);
 
   const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>('enter');
+  const [customModel, setCustomModel] = useState('');
   const [input, setInput] = useState('');
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -407,8 +491,17 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {nodeMessages.map((m) => (
-                  <MessageBubble key={m.id} message={m} />
+                {nodeMessages.map((m, i) => (
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    searching={
+                      searchingNodeId === nodeId &&
+                      i === nodeMessages.length - 1 &&
+                      m.role === 'assistant' &&
+                      !m.content
+                    }
+                  />
                 ))}
               </div>
             )}
@@ -421,6 +514,174 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
           style={{ borderTop: '1px solid var(--border)', background: 'var(--panel)' }}
         >
           <div className="mx-auto max-w-[820px]">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {provider?.thinkingStyle === 'deepseek' && (
+                <button
+                  className="btn !px-2.5 !py-1 !text-[12px]"
+                  style={{
+                    border: `1px solid ${thinking.enabled ? 'var(--accent)' : 'var(--border)'}`,
+                    background: thinking.enabled
+                      ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                      : 'transparent',
+                    color: thinking.enabled ? 'var(--accent)' : 'var(--muted)',
+                  }}
+                  onClick={() => setThinking({ enabled: !thinking.enabled })}
+                >
+                  <IconSpark width={13} height={13} />
+                  深度思考：{thinking.enabled ? '开' : '关'}
+                </button>
+              )}
+
+              {provider?.thinkingStyle === 'deepseek' && thinking.enabled && (
+                <Popover
+                  align="left"
+                  placement="top"
+                  width={140}
+                  button={
+                    <button className="btn btn-outline !px-2 !py-1 !text-[12px]">
+                      强度：{EFFORT_LABEL[thinking.effort]}
+                    </button>
+                  }
+                >
+                  {(close) => (
+                    <div>
+                      {(['low', 'high', 'max'] as ThinkingEffort[]).map((e) => (
+                        <MenuItem
+                          key={e}
+                          onClick={() => {
+                            setThinking({ effort: e });
+                            close();
+                          }}
+                        >
+                          <span className="flex-1">{EFFORT_LABEL[e]}</span>
+                          {thinking.effort === e && <IconCheck width={13} height={13} />}
+                        </MenuItem>
+                      ))}
+                    </div>
+                  )}
+                </Popover>
+              )}
+
+              <button
+                className="btn !px-2.5 !py-1 !text-[12px]"
+                style={{
+                  border: `1px solid ${search.enabled ? 'var(--accent)' : 'var(--border)'}`,
+                  background: search.enabled
+                    ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                    : 'transparent',
+                  color: search.enabled ? 'var(--accent)' : 'var(--muted)',
+                }}
+                title="开启后，提问时会先检索网页，再把结果交给模型"
+                onClick={() => setSearchEnabled(!search.enabled)}
+              >
+                <IconGlobe width={13} height={13} />
+                联网搜索
+              </button>
+
+              <Popover
+                align="left"
+                placement="top"
+                width={310}
+                button={
+                  <button className="btn btn-outline !px-2 !py-1 !text-[12px]">
+                    <span style={{ color: 'var(--muted)' }}>
+                      {provider?.displayName ?? '未配置'} · {provider?.model ?? '—'}
+                    </span>
+                    {provider && provider.kind !== 'mock' && !secrets[provider.id] ? (
+                      <span style={{ color: '#dc2626' }}>未填 Key</span>
+                    ) : null}
+                  </button>
+                }
+              >
+                {(close) => (
+                  <div className="ts-scroll max-h-[360px] overflow-y-auto">
+                    {settings.providers.map((p) => {
+                      const presets: ModelPreset[] = [...(p.presetModels ?? [])];
+                      if (!presets.some((m) => m.id === p.model)) {
+                        presets.push({ id: p.model, label: p.model, hint: '自定义' });
+                      }
+                      return (
+                        <div key={p.id} className="mb-0.5">
+                          <div
+                            className="px-2.5 pt-2 pb-1 text-[10px] tracking-widest uppercase"
+                            style={{ color: 'var(--faint)' }}
+                          >
+                            {p.displayName}
+                          </div>
+                          {presets.map((m) => {
+                            const active =
+                              settings.activeProviderId === p.id && p.model === m.id;
+                            return (
+                              <MenuItem
+                                key={m.id}
+                                onClick={() => {
+                                  useModel(p.id, m.id);
+                                  close();
+                                }}
+                              >
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full"
+                                  style={{
+                                    background: active ? 'var(--accent)' : 'var(--border-strong)',
+                                  }}
+                                />
+                                <span className="flex-1">{m.label}</span>
+                                {m.hint && (
+                                  <span className="text-[10px]" style={{ color: 'var(--faint)' }}>
+                                    {m.hint}
+                                  </span>
+                                )}
+                                {active && <IconCheck width={13} height={13} />}
+                              </MenuItem>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+
+                    <div
+                      className="mt-1 px-2 pt-2 pb-1"
+                      style={{ borderTop: '1px solid var(--border)' }}
+                    >
+                      <div className="mb-1 text-[10px]" style={{ color: 'var(--faint)' }}>
+                        自定义模型名（应用到 {provider?.displayName ?? '当前服务商'}）
+                      </div>
+                      <div className="mb-1.5 text-[10px] leading-relaxed" style={{ color: 'var(--faint)' }}>
+                        这个名称会作为 API 的 model 参数原样发送给服务商。
+                      </div>
+                      <div className="flex gap-1.5">
+                        <input
+                          className="input !py-1 !text-[12px]"
+                          placeholder="如 deepseek-v4-pro"
+                          value={customModel}
+                          onChange={(e) => setCustomModel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && customModel.trim() && provider) {
+                              useModel(provider.id, customModel.trim());
+                              setCustomModel('');
+                              close();
+                            }
+                          }}
+                        />
+                        <button
+                          className="btn btn-outline shrink-0 !px-2 !py-1 !text-[12px]"
+                          onClick={() => {
+                            if (customModel.trim() && provider) {
+                              useModel(provider.id, customModel.trim());
+                              setCustomModel('');
+                              close();
+                            }
+                          }}
+                        >
+                          使用
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Popover>
+            </div>
+
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -453,12 +714,11 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                 </button>
               )}
             </div>
-            <div className="mt-2 flex items-center gap-2 text-[11px]" style={{ color: 'var(--faint)' }}>
-              <span>
-                当前模型：{provider?.displayName ?? '未配置'}
-                {provider && provider.kind !== 'mock' && !secrets[provider.id] ? '（未填 Key）' : ''}
-              </span>
-              <span>·</span>
+
+            <div
+              className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
+              style={{ color: 'var(--faint)' }}
+            >
               <span>Enter 发送 / Shift+Enter 换行</span>
               <span>·</span>
               <span>选中文字可 解释 / 追问 / 分支</span>

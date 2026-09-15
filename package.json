@@ -13,8 +13,14 @@
   "dependencies": {
     "@xyflow/react": "^12.11.6",
     "clsx": "^2.1.1",
+    "katex": "^0.18.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

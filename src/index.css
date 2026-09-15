@@ -19,6 +19,19 @@
   --shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.06);
   --shadow-lg: 0 24px 60px rgba(24, 24, 27, 0.18);
   --canvas-dots: #d6d3d1;
+
+  --code-bg: #f7f7f8;
+  --code-border: #e5e4e2;
+  --hl-keyword: #a626a4;
+  --hl-string: #50a14f;
+  --hl-number: #986801;
+  --hl-comment: #a0a1a7;
+  --hl-title: #4078f2;
+  --hl-attr: #986801;
+  --hl-built: #c18401;
+  --hl-variable: #e45649;
+  --hl-type: #c18401;
+  --hl-symbol: #4078f2;
 }
 
 .dark {
@@ -39,6 +52,19 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
   --canvas-dots: #2f2f34;
+
+  --code-bg: #16161a;
+  --code-border: #2a2a2e;
+  --hl-keyword: #c678dd;
+  --hl-string: #98c379;
+  --hl-number: #d19a66;
+  --hl-comment: #5c6370;
+  --hl-title: #61afef;
+  --hl-attr: #d19a66;
+  --hl-built: #e5c07b;
+  --hl-variable: #e06c75;
+  --hl-type: #e5c07b;
+  --hl-symbol: #61afef;
 }
 
 html,
@@ -227,4 +253,222 @@ body {
   line-height: 1.7;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+/* ============ Markdown 渲染 ============ */
+
+.ts-markdown {
+  line-height: 1.72;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ts-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.ts-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.ts-markdown p {
+  margin: 0.55em 0;
+}
+
+.ts-markdown h1,
+.ts-markdown h2,
+.ts-markdown h3,
+.ts-markdown h4 {
+  margin: 1.1em 0 0.5em;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.ts-markdown h1 {
+  font-size: 1.35em;
+}
+
+.ts-markdown h2 {
+  font-size: 1.2em;
+}
+
+.ts-markdown h3 {
+  font-size: 1.08em;
+}
+
+.ts-markdown h4 {
+  font-size: 1em;
+}
+
+.ts-markdown ul,
+.ts-markdown ol {
+  margin: 0.55em 0;
+  padding-left: 1.4em;
+}
+
+.ts-markdown ul {
+  list-style: disc;
+}
+
+.ts-markdown ol {
+  list-style: decimal;
+}
+
+.ts-markdown li {
+  margin: 0.25em 0;
+}
+
+.ts-markdown li > ul,
+.ts-markdown li > ol {
+  margin: 0.2em 0;
+}
+
+.ts-markdown strong {
+  font-weight: 650;
+}
+
+.ts-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ts-markdown blockquote {
+  margin: 0.6em 0;
+  padding: 0.2em 0 0.2em 0.9em;
+  border-left: 3px solid var(--border-strong);
+  color: var(--muted);
+}
+
+.ts-markdown hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.ts-markdown :not(pre) > code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.12em 0.36em;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.ts-markdown pre {
+  margin: 0.7em 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  overflow-x: auto;
+}
+
+.ts-markdown pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+}
+
+.ts-markdown table {
+  display: block;
+  width: 100%;
+  margin: 0.7em 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  overflow-x: auto;
+}
+
+.ts-markdown th,
+.ts-markdown td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.ts-markdown th {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+
+.ts-markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.ts-markdown .katex {
+  font-size: 1.06em;
+}
+
+.ts-markdown .katex-display {
+  margin: 0.85em 0;
+  padding: 2px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 代码高亮：不依赖外部主题，随深浅色自动变化 */
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag {
+  color: var(--hl-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: var(--hl-string);
+}
+
+.hljs-number,
+.hljs-attr,
+.hljs-attribute,
+.hljs-meta {
+  color: var(--hl-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-section {
+  color: var(--hl-title);
+}
+
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-type {
+  color: var(--hl-built);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-name,
+.hljs-deletion {
+  color: var(--hl-variable);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--hl-symbol);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
 }

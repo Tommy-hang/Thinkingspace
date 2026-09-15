@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/store';
+import type { ThinkingEffort } from '../types';
 import { Modal } from './Modal';
 import { IconPlus, IconTrash } from './icons';
 
@@ -15,6 +16,10 @@ export function SettingsPanel() {
   const removeProvider = useStore((s) => s.removeProvider);
   const setActiveProvider = useStore((s) => s.setActiveProvider);
   const setSecret = useStore((s) => s.setSecret);
+  const setThinking = useStore((s) => s.setThinking);
+  const setSearchEnabled = useStore((s) => s.setSearchEnabled);
+  const setActiveSearchProvider = useStore((s) => s.setActiveSearchProvider);
+  const setSearchMaxResults = useStore((s) => s.setSearchMaxResults);
   const resetToSample = useStore((s) => s.resetToSample);
 
   const [adding, setAdding] = useState(false);
@@ -177,6 +182,102 @@ export function SettingsPanel() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <div className="mb-1 flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold">联网搜索</h3>
+          <button
+            className="btn !text-[12px]"
+            style={{
+              border: `1px solid ${settings.search.enabled ? 'var(--accent)' : 'var(--border)'}`,
+              color: settings.search.enabled ? 'var(--accent)' : 'var(--muted)',
+            }}
+            onClick={() => setSearchEnabled(!settings.search.enabled)}
+          >
+            {settings.search.enabled ? '已开启' : '已关闭'}
+          </button>
+        </div>
+        <p className="mb-3 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+          开启后，每次提问会先用下面的服务检索网页，再把结果作为参考资料交给模型。
+          搜索 Key 与 AI Key 一样，只保存在本机浏览器，不会被导出。
+        </p>
+
+        <div className="mb-3 flex items-center gap-2 text-[12px]">
+          <span style={{ color: 'var(--muted)' }}>每次检索条数</span>
+          <input
+            className="input !w-20 !py-1"
+            type="number"
+            min={1}
+            max={10}
+            value={settings.search.maxResults}
+            onChange={(e) => setSearchMaxResults(Number(e.target.value) || 5)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          {settings.search.providers.map((p) => {
+            const active = p.id === settings.search.activeProviderId;
+            return (
+              <div
+                key={p.id}
+                className="rounded-xl p-3"
+                style={{
+                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  background: active
+                    ? 'color-mix(in srgb, var(--accent) 6%, transparent)'
+                    : 'transparent',
+                }}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[13px] font-medium">{p.displayName}</span>
+                  {active && <span className="chip !text-[10px]">当前使用</span>}
+                  {!active && (
+                    <button
+                      className="btn btn-ghost ml-auto !text-[12px]"
+                      onClick={() => setActiveSearchProvider(p.id)}
+                    >
+                      设为当前
+                    </button>
+                  )}
+                </div>
+                <input
+                  className="input !py-1.5"
+                  type="password"
+                  placeholder="搜索服务 API Key"
+                  value={secrets[p.id] ?? ''}
+                  onChange={(e) => setSecret(p.id, e.target.value)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <h3 className="mb-2 text-[13px] font-semibold">深度思考（默认值）</h3>
+        <div className="flex flex-col gap-2.5 text-[12.5px]">
+          <Toggle
+            label="默认开启深度思考"
+            checked={settings.thinking.enabled}
+            onChange={(v) => setThinking({ enabled: v })}
+          />
+          <label className="flex items-center justify-between gap-4">
+            <span style={{ color: 'var(--muted)' }}>思考强度</span>
+            <select
+              className="input !w-28 !py-1"
+              value={settings.thinking.effort}
+              onChange={(e) => setThinking({ effort: e.target.value as ThinkingEffort })}
+            >
+              <option value="low">低</option>
+              <option value="high">高</option>
+              <option value="max">最高</option>
+            </select>
+          </label>
+          <p className="text-[11.5px]" style={{ color: 'var(--faint)' }}>
+            仅对支持思考模式的服务商（DeepSeek）生效；在对话输入框上方也可以随时临时切换。
+          </p>
         </div>
       </section>
 

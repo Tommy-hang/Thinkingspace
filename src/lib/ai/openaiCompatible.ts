@@ -9,7 +9,19 @@ function joinUrl(base: string, path: string): string {
  * DeepSeek、OpenAI、OpenRouter、以及任何 OpenAI-compatible 服务都可复用。
  */
 export async function streamOpenAICompatible(options: StreamChatOptions): Promise<void> {
-  const { provider, apiKey, messages, signal, onDelta } = options;
+  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking } = options;
+
+  const body: Record<string, unknown> = {
+    model: provider.model,
+    messages,
+    stream: true,
+  };
+
+  // DeepSeek：思考模式由参数控制，而不是靠换模型名
+  if (provider.thinkingStyle === 'deepseek' && thinking) {
+    body.thinking = { type: thinking.enabled ? 'enabled' : 'disabled' };
+    body.reasoning_effort = thinking.effort;
+  }
 
   const res = await fetch(joinUrl(provider.baseUrl, 'chat/completions'), {
     method: 'POST',
@@ -17,11 +29,7 @@ export async function streamOpenAICompatible(options: StreamChatOptions): Promis
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: provider.model,
-      messages,
-      stream: true,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -59,10 +67,19 @@ export async function streamOpenAICompatible(options: StreamChatOptions): Promis
       if (payload === '[DONE]') return;
       try {
         const json = JSON.parse(payload) as {
-          choices?: { delta?: { content?: string } }[];
+          choices?: {
+            delta?: {
+              content?: string;
+              reasoning_content?: string;
+              reasoning?: string;
+            };
+          }[];
         };
-        const delta = json.choices?.[0]?.delta?.content;
-        if (delta) onDelta(delta);
+        const delta = json.choices?.[0]?.delta;
+        if (!delta) continue;
+        const reasoning = delta.reasoning_content ?? delta.reasoning;
+        if (reasoning && onReasoning) onReasoning(reasoning);
+        if (delta.content) onDelta(delta.content);
       } catch {
         /* 忽略无法解析的心跳片段 */
       }

@@ -127,6 +127,13 @@ export const IconCheck = (p: P) => (
   </svg>
 );
 
+export const IconGlobe = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" />
+  </svg>
+);
+
 export const IconFolder = (p: P) => (
   <svg {...base} {...p}>
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

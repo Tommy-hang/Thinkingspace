@@ -1,4 +1,5 @@
-import type { ContextSettings, Message, Project, TopicNode } from '../../types';
+import type { ContextSettings, Message, Project, SearchSource, TopicNode } from '../../types';
+import { formatSourcesForPrompt } from '../search';
 import { SYSTEM_PROMPT, type ChatMessage } from './types';
 
 function truncate(text: string, max: number): string {
@@ -29,6 +30,8 @@ export interface BuildContextInput {
   settings: ContextSettings;
   /** 只发送最近 N 轮对话，避免主题过长 */
   maxTurns?: number;
+  /** 联网检索结果，会作为最高优先级的参考资料注入 */
+  searchSources?: SearchSource[];
 }
 
 /**
@@ -72,6 +75,13 @@ export function buildContext(input: BuildContextInput): ChatMessage[] {
           ? `\n【父主题摘要】${truncate(anchor.parentContextSummary, settings.maxAncestorChars)}`
           : ''
       }`,
+    });
+  }
+
+  if (input.searchSources && input.searchSources.length > 0) {
+    out.push({
+      role: 'system',
+      content: formatSourcesForPrompt(input.searchSources),
     });
   }
 

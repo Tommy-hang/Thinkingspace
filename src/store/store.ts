@@ -8,12 +8,16 @@ import type {
   PersistedData,
   Project,
   ProviderConfig,
+  SearchProviderConfig,
+  SearchSource,
   Settings,
+  ThinkingSettings,
   TopicNode,
 } from '../types';
 import { uid } from '../lib/id';
 import { buildContext } from '../lib/ai/contextBuilder';
 import { runChat } from '../lib/ai';
+import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
 import {
   loadData,
@@ -35,6 +39,7 @@ interface UIState {
   sidebarOpen: boolean;
   statusFilter: NodeStatus | 'all';
   streamingNodeId: string | null;
+  searchingNodeId: string | null;
 }
 
 interface Actions {
@@ -69,10 +74,17 @@ interface Actions {
   updateSettings: (patch: Partial<Settings>) => void;
   updateContextSettings: (patch: Partial<ContextSettings>) => void;
   updateProvider: (id: string, patch: Partial<ProviderConfig>) => void;
+  useModel: (providerId: string, model: string) => void;
   addProvider: (provider: Omit<ProviderConfig, 'id'>) => void;
   removeProvider: (id: string) => void;
   setActiveProvider: (id: string) => void;
   setSecret: (providerId: string, value: string) => void;
+
+  setThinking: (patch: Partial<ThinkingSettings>) => void;
+  setSearchEnabled: (enabled: boolean) => void;
+  setActiveSearchProvider: (id: string) => void;
+  updateSearchProvider: (id: string, patch: Partial<SearchProviderConfig>) => void;
+  setSearchMaxResults: (n: number) => void;
 
   importFromText: (text: string) => void;
   resetToSample: () => void;
@@ -116,6 +128,7 @@ export const useStore = create<StoreState>((set, get) => ({
   sidebarOpen: true,
   statusFilter: 'all',
   streamingNodeId: null,
+  searchingNodeId: null,
 
   setActiveProject: (id) =>
     set({
@@ -359,6 +372,44 @@ export const useStore = create<StoreState>((set, get) => ({
       ),
     }));
 
+    // ---- 联网搜索（可选）----
+    let sources: SearchSource[] = [];
+    const searchSettings = state.settings.search;
+    if (searchSettings.enabled) {
+      const searchProvider = searchSettings.providers.find(
+        (p) => p.id === searchSettings.activeProviderId,
+      );
+      if (searchProvider) {
+        set({ searchingNodeId: nodeId });
+        try {
+          sources = await runSearch({
+            provider: searchProvider,
+            apiKey: get().secrets[searchProvider.id] ?? '',
+            query: question,
+            maxResults: searchSettings.maxResults,
+          });
+          if (sources.length > 0) {
+            set((s) => ({
+              messages: s.messages.map((m) =>
+                m.id === assistantMessage.id ? { ...m, sources } : m,
+              ),
+            }));
+          }
+        } catch (err) {
+          const note = `⚠️ 联网搜索失败：${
+            err instanceof Error ? err.message : String(err)
+          }\n\n（下面仍会尝试直接回答）\n\n`;
+          set((s) => ({
+            messages: s.messages.map((m) =>
+              m.id === assistantMessage.id ? { ...m, content: m.content + note } : m,
+            ),
+          }));
+        } finally {
+          set({ searchingNodeId: null });
+        }
+      }
+    }
+
     const context = buildContext({
       project,
       nodes: get().nodes,
@@ -366,6 +417,7 @@ export const useStore = create<StoreState>((set, get) => ({
       nodeId,
       question,
       settings: state.settings.context,
+      searchSources: sources,
     });
 
     const controller = new AbortController();
@@ -378,6 +430,15 @@ export const useStore = create<StoreState>((set, get) => ({
         ),
       }));
 
+    const appendReasoning = (delta: string) =>
+      set((s) => ({
+        messages: s.messages.map((m) =>
+          m.id === assistantMessage.id
+            ? { ...m, reasoning: (m.reasoning ?? '') + delta }
+            : m,
+        ),
+      }));
+
     try {
       await runChat({
         provider,
@@ -385,6 +446,8 @@ export const useStore = create<StoreState>((set, get) => ({
         messages: context,
         signal: controller.signal,
         onDelta: append,
+        onReasoning: appendReasoning,
+        thinking: state.settings.thinking,
       });
       set((s) => ({
         messages: s.messages.map((m) =>
@@ -439,6 +502,17 @@ export const useStore = create<StoreState>((set, get) => ({
       },
     })),
 
+  useModel: (providerId, model) =>
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        activeProviderId: providerId,
+        providers: s.settings.providers.map((p) =>
+          p.id === providerId ? { ...p, model } : p,
+        ),
+      },
+    })),
+
   addProvider: (provider) => {
     const id = uid('prov_');
     set((s) => ({
@@ -472,6 +546,37 @@ export const useStore = create<StoreState>((set, get) => ({
     saveSecrets(secrets);
     set({ secrets });
   },
+
+  setThinking: (patch) =>
+    set((s) => ({
+      settings: { ...s.settings, thinking: { ...s.settings.thinking, ...patch } },
+    })),
+
+  setSearchEnabled: (enabled) =>
+    set((s) => ({ settings: { ...s.settings, search: { ...s.settings.search, enabled } } })),
+
+  setActiveSearchProvider: (id) =>
+    set((s) => ({
+      settings: { ...s.settings, search: { ...s.settings.search, activeProviderId: id } },
+    })),
+
+  updateSearchProvider: (id, patch) =>
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        search: {
+          ...s.settings.search,
+          providers: s.settings.search.providers.map((p) =>
+            p.id === id ? { ...p, ...patch } : p,
+          ),
+        },
+      },
+    })),
+
+  setSearchMaxResults: (n) =>
+    set((s) => ({
+      settings: { ...s.settings, search: { ...s.settings.search, maxResults: n } },
+    })),
 
   importFromText: (text) => {
     const imported = parseBundle(text);

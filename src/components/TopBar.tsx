@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { Popover, MenuItem } from './Popover';
 import { buildBundle, downloadBundle } from '../lib/exportImport';
+import { APP_VERSION } from '../version';
 import {
   IconBranch,
   IconDownload,
@@ -79,7 +80,9 @@ export function TopBar() {
 
       <div className="mr-1 flex items-center gap-2 pl-1">
         <span className="text-[15px] font-semibold tracking-tight">ThinkingSpace</span>
-        <span className="chip hidden sm:inline-flex">V0.3</span>
+        <span className="chip hidden sm:inline-flex" title="当前前端版本，用于确认是否已刷新到最新代码">
+          {APP_VERSION}
+        </span>
       </div>
 
       {project && (

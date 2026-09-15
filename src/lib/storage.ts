@@ -4,7 +4,10 @@ import type {
   PersistedData,
   Project,
   ProviderConfig,
+  SearchProviderConfig,
+  SearchSettings,
   Settings,
+  ThinkingSettings,
   TopicNode,
 } from '../types';
 import { uid } from './id';
@@ -17,10 +20,16 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     id: 'deepseek',
     displayName: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-chat',
+    model: 'deepseek-flash',
     kind: 'openai-compatible',
     enabled: true,
     builtin: true,
+    thinkingStyle: 'deepseek',
+    presetModels: [
+      { id: 'deepseek-flash', label: 'DeepSeek-V4.1-Flash', hint: '1M 上下文' },
+      { id: 'deepseek-v4-pro', label: 'DeepSeek-V4-Pro', hint: '最强推理' },
+      { id: 'deepseek-v4-flash', label: 'DeepSeek-V4-Flash', hint: '旧名' },
+    ],
   },
   {
     id: 'openai',
@@ -30,6 +39,12 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     kind: 'openai-compatible',
     enabled: false,
     builtin: true,
+    thinkingStyle: 'none',
+    presetModels: [
+      { id: 'gpt-4o-mini', label: 'GPT-4o mini', hint: '快速' },
+      { id: 'gpt-4o', label: 'GPT-4o' },
+      { id: 'o4-mini', label: 'o4-mini', hint: '深度思考' },
+    ],
   },
   {
     id: 'openrouter',
@@ -39,6 +54,13 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     kind: 'openai-compatible',
     enabled: false,
     builtin: true,
+    thinkingStyle: 'none',
+    presetModels: [
+      { id: 'deepseek/deepseek-chat', label: 'DeepSeek V3' },
+      { id: 'deepseek/deepseek-r1', label: 'DeepSeek R1', hint: '深度思考' },
+      { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet' },
+      { id: 'google/gemini-2.0-flash-001', label: 'Gemini Flash' },
+    ],
   },
   {
     id: 'mock',
@@ -48,8 +70,49 @@ export const DEFAULT_PROVIDERS: ProviderConfig[] = [
     kind: 'mock',
     enabled: true,
     builtin: true,
+    thinkingStyle: 'none',
+    presetModels: [{ id: 'mock', label: '离线演示' }],
   },
 ];
+
+export const DEFAULT_SEARCH_PROVIDERS: SearchProviderConfig[] = [
+  {
+    id: 'tavily',
+    displayName: 'Tavily（推荐）',
+    kind: 'tavily',
+    endpoint: 'https://api.tavily.com/search',
+    enabled: true,
+    builtin: true,
+  },
+  {
+    id: 'exa',
+    displayName: 'Exa',
+    kind: 'exa',
+    endpoint: 'https://api.exa.ai/search',
+    enabled: true,
+    builtin: true,
+  },
+  {
+    id: 'serper',
+    displayName: 'Serper（Google 结果）',
+    kind: 'serper',
+    endpoint: 'https://google.serper.dev/search',
+    enabled: true,
+    builtin: true,
+  },
+];
+
+export const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
+  enabled: false,
+  activeProviderId: 'tavily',
+  providers: DEFAULT_SEARCH_PROVIDERS,
+  maxResults: 5,
+};
+
+export const DEFAULT_THINKING: ThinkingSettings = {
+  enabled: true,
+  effort: 'high',
+};
 
 export const DEFAULT_SETTINGS: Settings = {
   activeProviderId: 'mock',
@@ -61,6 +124,8 @@ export const DEFAULT_SETTINGS: Settings = {
     ancestorDepth: 6,
     maxAncestorChars: 240,
   },
+  thinking: DEFAULT_THINKING,
+  search: DEFAULT_SEARCH_SETTINGS,
 };
 
 export type Secrets = Record<string, string>;
@@ -216,6 +281,12 @@ export function loadData(): PersistedData {
       ...parsed.settings,
       context: { ...DEFAULT_SETTINGS.context, ...parsed.settings?.context },
       providers: mergeProviders(parsed.settings?.providers),
+      thinking: { ...DEFAULT_SETTINGS.thinking, ...parsed.settings?.thinking },
+      search: {
+        ...DEFAULT_SETTINGS.search,
+        ...parsed.settings?.search,
+        providers: mergeSearchProviders(parsed.settings?.search?.providers),
+      },
     };
 
     return {
@@ -233,10 +304,39 @@ export function loadData(): PersistedData {
   }
 }
 
+function mergeSearchProviders(saved?: SearchProviderConfig[]): SearchProviderConfig[] {
+  if (!saved || saved.length === 0) return DEFAULT_SEARCH_PROVIDERS;
+  const byId = new Map(saved.map((p) => [p.id, p]));
+  const merged = DEFAULT_SEARCH_PROVIDERS.map((p) => ({ ...p, ...byId.get(p.id) }));
+  const extra = saved.filter((p) => !DEFAULT_SEARCH_PROVIDERS.some((d) => d.id === p.id));
+  return [...merged, ...extra];
+}
+
+/** 已下线的旧模型名，读取旧数据时自动迁移到新模型 */
+const RETIRED_MODELS: Record<string, string> = {
+  'deepseek-chat': 'deepseek-flash',
+  'deepseek-reasoner': 'deepseek-flash',
+};
+
 function mergeProviders(saved?: ProviderConfig[]): ProviderConfig[] {
   if (!saved || saved.length === 0) return DEFAULT_PROVIDERS;
   const byId = new Map(saved.map((p) => [p.id, p]));
-  const merged = DEFAULT_PROVIDERS.map((p) => ({ ...p, ...byId.get(p.id) }));
+
+  // 内置服务商：模型清单、名称、地址等一律以代码为准（它们会随官方更新而变化），
+  // 只保留用户自己的选择（选了哪个模型、是否启用）。
+  const merged = DEFAULT_PROVIDERS.map((p) => {
+    const savedProvider = byId.get(p.id);
+    if (!savedProvider) return p;
+    const next: ProviderConfig = {
+      ...p,
+      model: savedProvider.model || p.model,
+      enabled: savedProvider.enabled ?? p.enabled,
+    };
+    if (RETIRED_MODELS[next.model]) next.model = RETIRED_MODELS[next.model];
+    return next;
+  });
+
+  // 用户自己添加的服务商原样保留
   const extra = saved.filter((p) => !DEFAULT_PROVIDERS.some((d) => d.id === p.id));
   return [...merged, ...extra];
 }

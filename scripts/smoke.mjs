@@ -61,24 +61,69 @@ const server = await createServer({
 });
 
 let failed = false;
+const checks = [];
+const check = (name, ok) => {
+  checks.push([name, Boolean(ok)]);
+  if (!ok) failed = true;
+};
 
 try {
   const appMod = await server.ssrLoadModule('/src/App.tsx');
   const App = appMod.default;
   const html = renderToString(React.createElement(App));
 
-  const checks = [
-    ['品牌名 ThinkingSpace', html.includes('ThinkingSpace')],
-    ['地图容器', html.includes('react-flow')],
-    ['侧边栏项目概述', html.includes('项目概述')],
-    ['示例主题卡', html.includes('Transformer')],
-  ];
+  check('品牌名 ThinkingSpace', html.includes('ThinkingSpace'));
+  check('地图容器', html.includes('react-flow'));
+  check('侧边栏项目概述', html.includes('项目概述'));
+  check('示例主题卡', html.includes('Transformer'));
+
+  // --- Markdown + KaTeX 渲染管线 ---
+  const mdMod = await server.ssrLoadModule('/src/components/Markdown.tsx');
+  const sample = [
+    '## 二级标题',
+    '',
+    '行内公式 $a^2+b^2=c^2$ 测试。',
+    '',
+    '$$',
+    '\\int_0^1 x^2 \\, dx = \\frac{1}{3}',
+    '$$',
+    '',
+    '```js',
+    'const answer = 42;',
+    '```',
+  ].join('\n');
+  const mdHtml = renderToString(React.createElement(mdMod.Markdown, { content: sample }));
+
+  check('Markdown 标题渲染', mdHtml.includes('<h2'));
+  check('KaTeX 行内公式', mdHtml.includes('class="katex"'));
+  check('KaTeX 块级公式', mdHtml.includes('katex-display'));
+  check('代码块高亮', mdHtml.includes('hljs'));
+
+  // --- Focus View 渲染 ---
+  const storeMod = await server.ssrLoadModule('/src/store/store.ts');
+  const state = storeMod.useStore.getState();
+  const node = state.nodes.find((n) => state.messages.some((m) => m.nodeId === n.id));
+
+  if (!node) {
+    check('Focus View 有可测试节点', false);
+  } else {
+    const focusMod = await server.ssrLoadModule('/src/components/FocusView.tsx');
+    const focusHtml = renderToString(
+      React.createElement(focusMod.FocusView, {
+        nodeId: node.id,
+        originRect: null,
+        onClose() {},
+      }),
+    );
+    check('Focus View 返回按钮', focusHtml.includes('返回地图'));
+    check('Focus View 渲染 Markdown', focusHtml.includes('ts-markdown'));
+    check('Focus View 模型切换器', focusHtml.includes('离线演示') || focusHtml.includes('mock'));
+  }
 
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
-    if (!ok) failed = true;
   }
-  console.log(`\n渲染输出长度：${html.length}`);
+  console.log(`\nApp 渲染长度：${html.length} / Markdown 渲染长度：${mdHtml.length}`);
 } catch (err) {
   console.error('RENDER_FAIL');
   console.error(err);

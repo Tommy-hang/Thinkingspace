@@ -5,12 +5,21 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ThinkingOptions {
+  enabled: boolean;
+  effort: 'low' | 'high' | 'max';
+}
+
 export interface StreamChatOptions {
   provider: ProviderConfig;
   apiKey: string;
   messages: ChatMessage[];
   signal?: AbortSignal;
   onDelta: (text: string) => void;
+  /** 深度思考模型返回的推理过程 */
+  onReasoning?: (text: string) => void;
+  /** 是否开启深度思考，以及思考强度 */
+  thinking?: ThinkingOptions;
 }
 
 export const SYSTEM_PROMPT = [

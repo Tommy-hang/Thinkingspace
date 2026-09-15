@@ -66,15 +66,31 @@ export interface TopicNode {
   updatedAt: number;
 }
 
+export interface SearchSource {
+  title: string;
+  url: string;
+  content: string;
+}
+
 export interface Message {
   id: string;
   nodeId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  /** 深度思考模型返回的推理过程 */
+  reasoning?: string;
+  /** 本轮回答所依据的联网搜索结果 */
+  sources?: SearchSource[];
   createdAt: number;
   /** true while the model is still streaming into this message */
   pending?: boolean;
   error?: boolean;
+}
+
+export interface ModelPreset {
+  id: string;
+  label: string;
+  hint?: string;
 }
 
 export interface GraphEdge {
@@ -88,6 +104,11 @@ export interface GraphEdge {
 
 export type ProviderKind = 'openai-compatible' | 'mock';
 
+/** 如何向该服务商表达「开启/关闭深度思考」 */
+export type ThinkingStyle = 'deepseek' | 'none';
+
+export type ThinkingEffort = 'low' | 'high' | 'max';
+
 export interface ProviderConfig {
   id: string;
   displayName: string;
@@ -96,6 +117,31 @@ export interface ProviderConfig {
   kind: ProviderKind;
   enabled: boolean;
   builtin?: boolean;
+  presetModels?: ModelPreset[];
+  thinkingStyle?: ThinkingStyle;
+}
+
+export interface ThinkingSettings {
+  enabled: boolean;
+  effort: ThinkingEffort;
+}
+
+export type SearchProviderKind = 'tavily' | 'exa' | 'serper';
+
+export interface SearchProviderConfig {
+  id: string;
+  displayName: string;
+  kind: SearchProviderKind;
+  endpoint: string;
+  enabled: boolean;
+  builtin?: boolean;
+}
+
+export interface SearchSettings {
+  enabled: boolean;
+  activeProviderId: string;
+  providers: SearchProviderConfig[];
+  maxResults: number;
 }
 
 export interface ContextSettings {
@@ -110,6 +156,8 @@ export interface Settings {
   providers: ProviderConfig[];
   theme: 'light' | 'dark';
   context: ContextSettings;
+  thinking: ThinkingSettings;
+  search: SearchSettings;
 }
 
 export interface PersistedData {
