@@ -1,0 +1,25 @@
+import type { ProviderConfig } from '../../types';
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface StreamChatOptions {
+  provider: ProviderConfig;
+  apiKey: string;
+  messages: ChatMessage[];
+  signal?: AbortSignal;
+  onDelta: (text: string) => void;
+}
+
+export const SYSTEM_PROMPT = [
+  '你是 ThinkingSpace 中的思考协作 AI。',
+  '用户不是在和你线性聊天，而是在一个以「主题」为单位、可分支、可导航的思维空间中与你协作。',
+  '请遵循以下原则：',
+  '1. 紧扣当前主题作答，不要复述无关历史。',
+  '2. 如果当前主题来自某个父主题的具体片段，请自然地把回答与那段上下文衔接起来。',
+  '3. 结构清晰、克制、准确；优先使用简短段落与列表。',
+  '4. 除非用户要求其他语言，默认使用中文回答。',
+  '5. 不确定时明确说明不确定，不要编造。',
+].join('\n');
