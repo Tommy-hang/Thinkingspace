@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { MenuItem } from './Popover';
-import { IconChevronDown, IconChevronRight, IconTrash } from './icons';
+import { buildNodeUrl, copyText } from '../lib/link';
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconLink,
+  IconPin,
+  IconTrash,
+} from './icons';
 
 interface NodeMenuProps {
   nodeId: string;
@@ -12,6 +19,7 @@ interface NodeMenuProps {
 export function NodeMenu({ nodeId, onClose }: NodeMenuProps) {
   const nodes = useStore((s) => s.nodes);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
+  const togglePin = useStore((s) => s.togglePin);
   const deleteNode = useStore((s) => s.deleteNode);
   const openNodeMenu = useStore((s) => s.openNodeMenu);
 
@@ -52,6 +60,28 @@ export function NodeMenu({ nodeId, onClose }: NodeMenuProps) {
         boxShadow: 'var(--shadow-lg)',
       }}
     >
+      <MenuItem
+        onClick={() => {
+          togglePin(nodeId);
+          openNodeMenu(null);
+        }}
+      >
+        <IconPin width={14} height={14} />
+        <span className="flex-1">{node.pinned ? '取消收藏' : '收藏'}</span>
+      </MenuItem>
+
+      <MenuItem
+        onClick={() => {
+          void copyText(buildNodeUrl(node.projectId, node.id)).then((ok) => {
+            if (!ok) alert('复制失败，请手动复制浏览器地址栏。');
+          });
+          openNodeMenu(null);
+        }}
+      >
+        <IconLink width={14} height={14} />
+        <span className="flex-1">复制链接</span>
+      </MenuItem>
+
       {hasChildren && (
         <MenuItem
           onClick={() => {

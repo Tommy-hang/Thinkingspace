@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../store/store';
 import { NODE_STATUS, type NodeStatus, type TopicNode } from '../types';
+import { IconX } from './icons';
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
@@ -12,6 +13,8 @@ export function Sidebar() {
   const revealNode = useStore((s) => s.revealNode);
   const selectedNodeId = useStore((s) => s.selectedNodeId);
   const updateProjectSummary = useStore((s) => s.updateProjectSummary);
+  const recentNodeIds = useStore((s) => s.recentNodeIds);
+  const togglePin = useStore((s) => s.togglePin);
 
   const project = projects.find((p) => p.id === activeProjectId) ?? null;
 
@@ -43,6 +46,22 @@ export function Sidebar() {
     }
     return c;
   }, [projectNodes]);
+
+  const nodeById = useMemo(
+    () => new Map(projectNodes.map((n) => [n.id, n])),
+    [projectNodes],
+  );
+
+  const recentNodes = useMemo(
+    () =>
+      recentNodeIds
+        .map((id) => nodeById.get(id))
+        .filter((n): n is TopicNode => Boolean(n))
+        .slice(0, 6),
+    [recentNodeIds, nodeById],
+  );
+
+  const pinnedNodes = useMemo(() => projectNodes.filter((n) => n.pinned), [projectNodes]);
 
   if (!project) return null;
 
@@ -87,6 +106,37 @@ export function Sidebar() {
       className="ts-scroll flex w-[262px] shrink-0 flex-col overflow-y-auto"
       style={{ background: 'var(--panel-2)', borderRight: '1px solid var(--border)' }}
     >
+      {recentNodes.length > 0 && (
+        <div className="px-3 pt-3.5 pb-1">
+          <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: 'var(--faint)' }}>
+            最近
+          </div>
+          <div className="flex flex-col">
+            {recentNodes.map((n) => (
+              <NavRow key={n.id} node={n} onClick={() => revealNode(n.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pinnedNodes.length > 0 && (
+        <div className="px-3 pt-2.5 pb-1">
+          <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: 'var(--faint)' }}>
+            已收藏 · {pinnedNodes.length}
+          </div>
+          <div className="flex flex-col">
+            {pinnedNodes.map((n) => (
+              <NavRow
+                key={n.id}
+                node={n}
+                onClick={() => revealNode(n.id)}
+                onTogglePin={() => togglePin(n.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="px-3 pt-3.5 pb-3">
         <div className="mb-1.5 text-[10px] tracking-widest uppercase" style={{ color: 'var(--faint)' }}>
           项目概述
@@ -134,6 +184,38 @@ export function Sidebar() {
 
       <div className="px-1.5 pb-4">{renderTree(null, 0)}</div>
     </aside>
+  );
+}
+
+function NavRow({
+  node,
+  onClick,
+  onTogglePin,
+}: {
+  node: TopicNode;
+  onClick: () => void;
+  onTogglePin?: () => void;
+}) {
+  const status = NODE_STATUS[node.status];
+  return (
+    <div className="group flex items-center gap-2 rounded-md px-2 py-1">
+      <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={onClick}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: status.color }} />
+        <span className="truncate text-[12.5px]" style={{ color: 'var(--muted)' }}>
+          {node.title}
+        </span>
+      </button>
+      {onTogglePin && (
+        <button
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ color: 'var(--faint)' }}
+          title="取消收藏"
+          onClick={onTogglePin}
+        >
+          <IconX width={12} height={12} />
+        </button>
+      )}
+    </div>
   );
 }
 

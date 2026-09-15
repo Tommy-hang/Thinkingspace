@@ -15,11 +15,15 @@ import {
   IconCheck,
   IconChevronLeft,
   IconGlobe,
+  IconLink,
+  IconPin,
   IconSend,
   IconSpark,
   IconStop,
   IconTrash,
 } from './icons';
+import { buildNodeUrl, copyText } from '../lib/link';
+import { intentLabel } from '../lib/branchIntent';
 
 interface FocusViewProps {
   nodeId: string;
@@ -168,6 +172,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const createBranch = useStore((s) => s.createBranch);
   const focusNode = useStore((s) => s.focusNode);
   const useModel = useStore((s) => s.useModel);
+  const togglePin = useStore((s) => s.togglePin);
   const thinking = useStore((s) => s.settings.thinking);
   const search = useStore((s) => s.settings.search);
   const searchingNodeId = useStore((s) => s.searchingNodeId);
@@ -399,6 +404,27 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </Popover>
 
             <button
+              className="btn btn-ghost px-2"
+              title={node.pinned ? '取消收藏' : '收藏这个主题'}
+              style={{ color: node.pinned ? 'var(--accent)' : 'var(--muted)' }}
+              onClick={() => togglePin(nodeId)}
+            >
+              <IconPin width={15} height={15} />
+            </button>
+
+            <button
+              className="btn btn-ghost px-2"
+              title="复制这个主题的链接"
+              onClick={() => {
+                void copyText(buildNodeUrl(node.projectId, node.id)).then((ok) => {
+                  if (!ok) alert('复制失败，请手动复制浏览器地址栏。');
+                });
+              }}
+            >
+              <IconLink width={15} height={15} />
+            </button>
+
+            <button
               className="btn btn-outline"
               title="新建一个子分支"
               onClick={() => {
@@ -463,6 +489,16 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                 {node.title}
               </h1>
             )}
+
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              {intentLabel(node.intent) && (
+                <span className="chip" title="这个分支诞生时的思考方式">
+                  {intentLabel(node.intent)}
+                </span>
+              )}
+              {node.pinned && <span className="chip">已收藏</span>}
+              <span className="chip">{Math.ceil(nodeMessages.length / 2)} 轮</span>
+            </div>
 
             {node.anchor?.anchorText && (
               <div

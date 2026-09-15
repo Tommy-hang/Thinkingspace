@@ -7,6 +7,7 @@ import { MapView } from './components/MapView';
 import { FocusView } from './components/FocusView';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { buildNodeHash, parseNodeHash } from './lib/link';
 
 export default function App() {
   const theme = useStore((s) => s.settings.theme);
@@ -22,6 +23,43 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // 通过链接打开某个 Topic：#/p/<projectId>/n/<nodeId>
+  useEffect(() => {
+    const apply = (initial: boolean) => {
+      const link = parseNodeHash(window.location.hash);
+      if (!link) return;
+      const state = useStore.getState();
+      if (link.projectId && state.projects.some((p) => p.id === link.projectId)) {
+        if (state.activeProjectId !== link.projectId) state.setActiveProject(link.projectId);
+      }
+      const go = () => {
+        const s = useStore.getState();
+        if (link.nodeId && s.nodes.some((n) => n.id === link.nodeId)) {
+          s.revealNode(link.nodeId);
+          s.focusNode(link.nodeId);
+        }
+      };
+      if (initial) setTimeout(go, 420);
+      else go();
+    };
+
+    apply(true);
+    const onHash = () => apply(false);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // 打开某个 Topic 时，把地址栏同步为可复制的链接
+  useEffect(() => {
+    if (!focusedNodeId) return;
+    const node = useStore.getState().nodes.find((n) => n.id === focusedNodeId);
+    if (!node) return;
+    const hash = buildNodeHash(node.projectId, node.id);
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, '', hash);
+    }
+  }, [focusedNodeId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
