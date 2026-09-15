@@ -9,6 +9,7 @@ import {
   IconFolder,
   IconHelp,
   IconLayout,
+  IconMap,
   IconMoon,
   IconPlus,
   IconRedo,
@@ -40,6 +41,7 @@ export function TopBar() {
   const setSearchOpen = useStore((s) => s.setSearchOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
+  const setKnowledgeOpen = useStore((s) => s.setKnowledgeOpen);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -194,6 +196,15 @@ export function TopBar() {
         <button className="btn btn-ghost" onClick={() => setSearchOpen(true)} title="搜索 (Ctrl+K)">
           <IconSearch />
           <span className="hidden md:inline">搜索</span>
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={() => setKnowledgeOpen(true)}
+          title="知识地图（由全部卡片的「当前理解」生成）"
+          disabled={!project}
+        >
+          <IconMap />
+          <span className="hidden md:inline">知识地图</span>
         </button>
         <button
           className="btn btn-ghost"

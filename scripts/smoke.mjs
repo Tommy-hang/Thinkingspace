@@ -244,6 +244,32 @@ try {
   check('迁移后主题不再携带 openQuestions', migrated.nodes[0].openQuestions === undefined);
   check('无旧数据时原样返回', storageMod.migrateOpenQuestions(legacyProjects, []).nodes.length === 0);
 
+  // --- 知识地图（V0.3.6）---
+  const kmMod = await server.ssrLoadModule('/src/lib/knowledgeMap.ts');
+  const kmItems = [
+    { id: 'n1', title: '注意力机制', summary: 'QKV 分工与缩放点积' },
+    { id: 'n2', title: '位置编码', summary: '把顺序信息注入模型' },
+  ];
+  const localMap = kmMod.localKnowledgeMap('Transformer 学习', kmItems);
+  check('知识地图兜底生成根节点', localMap.root.label === 'Transformer 学习');
+  check('知识地图兜底挂上来源卡片', localMap.root.children[0].sourceNodeIds[0] === 'n1');
+
+  const flatPoints = kmMod.flattenKnowledge(localMap.root);
+  check('知识点展开包含根与子节点', flatPoints.length === 3 && flatPoints[0].depth === 0);
+  check(
+    '知识点父子关系正确',
+    flatPoints[1].parentId === localMap.root.id && flatPoints[1].depth === 1,
+  );
+  check('知识点计数', kmMod.countKnowledgePoints(localMap.root) === 3);
+
+  const aiMap = await kmMod.generateKnowledgeMap({
+    provider: mockProvider,
+    apiKey: '',
+    projectTitle: 'Transformer 学习',
+    items: kmItems,
+  });
+  check('generateKnowledgeMap 离线回退可用', aiMap.root.children.length === 2);
+
   const md = exportMod.exportBranchMarkdown(demoNodes, [], 'A');
   check('Markdown 导出保留层级', md.includes('# A') && md.includes('## B') && md.includes('### C'));
 

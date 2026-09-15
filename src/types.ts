@@ -81,12 +81,38 @@ export interface BranchSuggestion {
   question: string;
 }
 
+/** 知识地图上的一个知识点（只描述知识，不描述卡片） */
+export interface KnowledgePoint {
+  id: string;
+  label: string;
+  /** 这个知识点来自哪些主题卡片 */
+  sourceNodeIds: string[];
+  children: KnowledgePoint[];
+}
+
+/** 由所有卡片的「当前理解」综合而成的项目级知识地图 */
+export interface KnowledgeMap {
+  generatedAt: number;
+  root: KnowledgePoint;
+}
+
+export interface KnowledgeNodeData extends Record<string, unknown> {
+  label: string;
+  sources: { id: string; title: string }[];
+  depth: number;
+  isRoot: boolean;
+}
+
+export type KnowledgeFlowNode = Node<KnowledgeNodeData, 'knowledge'>;
+
 export interface Project {
   id: string;
   title: string;
   summary: string;
   /** 项目级「待解决问题」，所有卡片共享同一份 */
   openQuestions?: OpenQuestion[];
+  /** 由全部卡片的「当前理解」生成的知识点思维导图 */
+  knowledgeMap?: KnowledgeMap;
   createdAt: number;
   updatedAt: number;
 }

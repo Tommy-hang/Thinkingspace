@@ -1,4 +1,7 @@
-import type { TopicNode } from '../types';
+export interface LayoutItem {
+  id: string;
+  parentId: string | null;
+}
 
 export interface LayoutOptions {
   xGap?: number;
@@ -8,9 +11,10 @@ export interface LayoutOptions {
 /**
  * 简单的分层树布局：横轴表示深度（第几层分支），纵轴表示同层顺序。
  * 不依赖任何外部图布局库，保证节点不会重叠。
+ * 只依赖 id / parentId，因此主题树和知识点树都可以复用。
  */
-export function layoutTree(
-  nodes: TopicNode[],
+export function layoutTree<T extends LayoutItem>(
+  nodes: T[],
   options: LayoutOptions = {},
 ): Map<string, { x: number; y: number }> {
   const xGap = options.xGap ?? 340;

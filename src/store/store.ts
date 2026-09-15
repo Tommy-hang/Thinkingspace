@@ -25,6 +25,7 @@ import { layoutTree } from '../lib/layout';
 import { getVisibleNodes } from '../lib/tree';
 import { intentToEdgeType } from '../lib/branchIntent';
 import { generateDigest, generateInsight, generateSuggestions } from '../lib/reasoning';
+import { generateKnowledgeMap, type KnowledgeSourceItem } from '../lib/knowledgeMap';
 import {
   loadData,
   loadSecrets,
@@ -51,6 +52,8 @@ interface UIState {
   /** 打开聚焦视图后需要滚动定位到的消息 */
   focusMessageId: string | null;
   helpOpen: boolean;
+  knowledgeOpen: boolean;
+  knowledgeProgress: { phase: 'summaries' | 'map'; current: number; total: number } | null;
 }
 
 interface HistoryState {
@@ -122,6 +125,9 @@ interface Actions {
   clearReveal: () => void;
   openNodeMenu: (id: string | null, anchor?: { x: number; y: number } | null) => void;
   setHelpOpen: (open: boolean) => void;
+  setKnowledgeOpen: (open: boolean) => void;
+  locateNode: (id: string) => void;
+  buildKnowledgeMap: () => Promise<void>;
   setSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -219,6 +225,8 @@ export const useStore = create<StoreState>((set, get) => ({
   nodeMenuAnchor: null,
   focusMessageId: null,
   helpOpen: false,
+  knowledgeOpen: false,
+  knowledgeProgress: null,
   searchOpen: false,
   settingsOpen: false,
   sidebarOpen: true,
@@ -1022,6 +1030,71 @@ export const useStore = create<StoreState>((set, get) => ({
   openNodeMenu: (id, anchor) =>
     set({ nodeMenuId: id, nodeMenuAnchor: anchor ?? null }),
   setHelpOpen: (open) => set({ helpOpen: open }),
+  setKnowledgeOpen: (open) => set({ knowledgeOpen: open }),
+
+  locateNode: (id) => {
+    const node = get().nodes.find((n) => n.id === id);
+    if (!node) return;
+    if (node.hidden) get().unhideNode(id);
+    get().revealNode(id);
+  },
+
+  /**
+   * 生成项目级知识地图：
+   * 1) 先让每张卡片更新一次「当前理解」（不读取全部对话）
+   * 2) 再根据所有「当前理解」之间的知识点关系构建思维导图
+   */
+  buildKnowledgeMap: async () => {
+    const s = get();
+    const project = s.projects.find((p) => p.id === s.activeProjectId);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!project || !provider) return;
+
+    const projectNodes = s.nodes.filter((n) => n.projectId === project.id && !n.hidden);
+    const withContent = projectNodes.filter((n) =>
+      s.messages.some((m) => m.nodeId === n.id && m.content.trim()),
+    );
+
+    set({ knowledgeProgress: { phase: 'summaries', current: 0, total: withContent.length } });
+    for (let i = 0; i < withContent.length; i += 1) {
+      set({
+        knowledgeProgress: { phase: 'summaries', current: i, total: withContent.length },
+      });
+      await get().refreshSummary(withContent[i].id);
+    }
+    set({
+      knowledgeProgress: {
+        phase: 'summaries',
+        current: withContent.length,
+        total: withContent.length,
+      },
+    });
+
+    set({ knowledgeProgress: { phase: 'map', current: 0, total: 1 } });
+    const fresh = get();
+    const items: KnowledgeSourceItem[] = fresh.nodes
+      .filter((n) => n.projectId === project.id && !n.hidden)
+      .map((n) => ({
+        id: n.id,
+        title: n.title,
+        summary: n.summary || n.insight || '',
+      }))
+      .filter((item) => item.summary.trim().length > 0);
+
+    const map = await generateKnowledgeMap({
+      provider,
+      apiKey: fresh.secrets[provider.id] ?? '',
+      projectTitle: project.title,
+      items,
+    });
+
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === project.id ? { ...p, knowledgeMap: map, updatedAt: Date.now() } : p,
+      ),
+      knowledgeProgress: null,
+    }));
+  },
   setSearchOpen: (open) => set({ searchOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),

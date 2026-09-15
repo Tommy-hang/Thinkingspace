@@ -1,40 +1,11 @@
 import type { BranchIntent, BranchSuggestion, ProviderConfig, TopicNode } from '../types';
 import { INTENT_META, INTENT_ORDER } from './branchIntent';
 import { localSummary, localTitle, TITLE_MAX } from './title';
+import { extractJson, str } from './json';
 import { completeText, type ChatMessage } from './ai';
 
 /** 深度思考对这类短任务没有帮助，反而更慢更贵 */
 const FAST_THINKING = { enabled: false, effort: 'low' as const };
-
-function extractJson(raw: string): unknown {
-  const cleaned = raw
-    .replace(/```[a-zA-Z]*/g, '')
-    .replace(/```/g, '')
-    .trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    /* 继续尝试截取 */
-  }
-  const pairs: [number, number][] = [
-    [cleaned.indexOf('{'), cleaned.lastIndexOf('}')],
-    [cleaned.indexOf('['), cleaned.lastIndexOf(']')],
-  ];
-  for (const [start, end] of pairs) {
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(cleaned.slice(start, end + 1));
-      } catch {
-        /* 继续 */
-      }
-    }
-  }
-  return null;
-}
-
-function str(value: unknown, fallback = ''): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
-}
 
 async function ask(
   provider: ProviderConfig,
