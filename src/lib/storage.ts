@@ -16,6 +16,28 @@ import { uid } from './id';
 
 export const DATA_KEY = 'thinkingspace.data.v1';
 export const SECRETS_KEY = 'thinkingspace.secrets.v1';
+export const UI_PREFS_KEY = 'thinkingspace.ui.v1';
+
+export interface UiPrefs {
+  guestBannerDismissed?: boolean;
+}
+
+export function loadUiPrefs(): UiPrefs {
+  try {
+    const raw = localStorage.getItem(UI_PREFS_KEY);
+    return raw ? (JSON.parse(raw) as UiPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveUiPrefs(prefs: UiPrefs): void {
+  try {
+    localStorage.setItem(UI_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* 忽略 */
+  }
+}
 
 export const DEFAULT_PROVIDERS: ProviderConfig[] = [
   {

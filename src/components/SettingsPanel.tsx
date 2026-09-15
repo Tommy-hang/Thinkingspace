@@ -340,9 +340,11 @@ export function SettingsPanel() {
         <h3 className="mb-1 text-[13px] font-semibold" style={{ color: '#dc2626' }}>
           危险操作
         </h3>
-        <p className="mb-2 text-[12px]" style={{ color: 'var(--muted)' }}>
-          清空本机全部 ThinkingSpace 数据（项目、主题、对话、API Key），并恢复到初始示例。
-          此操作不可撤销，建议先导出备份。
+        <p className="mb-2 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+          清空<strong>这台设备</strong>上的全部 ThinkingSpace 数据（项目、主题、对话、API Key），
+          并恢复到初始示例。此操作不可撤销，建议先导出备份。
+          <br />
+          已登录时，<strong>云端数据不会被删除</strong>，下次同步会重新拉回来。
         </p>
         <button
           className="btn"

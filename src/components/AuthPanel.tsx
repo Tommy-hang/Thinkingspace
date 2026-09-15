@@ -47,8 +47,12 @@ export function AuthPanel() {
       return;
     }
     if (mode === 'signup') {
-      if (password.length < 6) {
-        setCloudNotice('密码至少 6 位。');
+      if (password.length < 8) {
+        setCloudNotice('密码至少 8 位。');
+        return;
+      }
+      if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        setCloudNotice('密码需要同时包含字母和数字。');
         return;
       }
       if (password !== confirm) {
@@ -238,7 +242,7 @@ export function AuthPanel() {
               className="input mt-1"
               type="password"
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              placeholder={mode === 'signup' ? '至少 6 位' : ''}
+              placeholder={mode === 'signup' ? '至少 8 位，含字母和数字' : ''}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => {

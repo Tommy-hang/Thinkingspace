@@ -58,11 +58,19 @@ create trigger settings_touch
   before update on public.user_settings
   for each row execute function public.touch_updated_at();
 
--- ---------- 4. 开启行级安全（生死线） ----------
+-- ---------- 4. 表级授权 ----------
+-- RLS 决定「能看哪些行」，GRANT 决定「能不能碰这张表」，两者缺一不可。
+-- 只授权给 authenticated（已登录用户）：匿名请求连表都碰不到，多一层保护。
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete on table public.projects      to authenticated;
+grant select, insert, update, delete on table public.user_settings to authenticated;
+
+-- ---------- 5. 开启行级安全（生死线） ----------
 alter table public.projects      enable row level security;
 alter table public.user_settings enable row level security;
 
--- ---------- 5. 权限策略：每个人只能碰自己的行 ----------
+-- ---------- 6. 权限策略：每个人只能碰自己的行 ----------
 drop policy if exists "projects_select_own" on public.projects;
 create policy "projects_select_own" on public.projects
   for select using (auth.uid() = user_id);

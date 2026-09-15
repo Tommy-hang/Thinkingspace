@@ -9,6 +9,7 @@ import { SearchPanel } from './components/SearchPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { AuthPanel } from './components/AuthPanel';
+import { GuestBanner } from './components/GuestBanner';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
@@ -107,6 +108,7 @@ export default function App() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar />
+      <GuestBanner />
       <div className="flex min-h-0 flex-1">
         {sidebarOpen && <Sidebar />}
         <main className="relative min-h-0 flex-1">

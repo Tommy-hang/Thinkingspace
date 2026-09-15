@@ -33,9 +33,11 @@ jobs:
       - name: 构建
         run: npm run build
         env:
-          # 在仓库 Settings → Secrets and variables → Actions 里配置这两个值
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # 在仓库 Settings → Secrets and variables → Actions → Variables 里配置
+          # （这两个值本身是公开的：anon/publishable key 会出现在前端代码里，
+          #   真正的安全边界是数据库的 Row Level Security）
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: 配置 Pages
         uses: actions/configure-pages@v5

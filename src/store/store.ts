@@ -48,8 +48,10 @@ import {
 import {
   loadData,
   loadSecrets,
+  loadUiPrefs,
   saveData,
   saveSecrets,
+  saveUiPrefs,
   clearAllData,
   type Secrets,
 } from '../lib/storage';
@@ -78,6 +80,7 @@ interface UIState {
   cloudStatus: 'disabled' | 'signed-out' | 'syncing' | 'synced' | 'error';
   cloudNotice: string | null;
   authOpen: boolean;
+  guestBannerDismissed: boolean;
 }
 
 interface HistoryState {
@@ -154,6 +157,7 @@ interface Actions {
   buildKnowledgeMap: () => Promise<void>;
 
   setAuthOpen: (open: boolean) => void;
+  dismissGuestBanner: () => void;
   initCloud: () => Promise<void>;
   cloudSignUp: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
   cloudSignIn: (email: string, password: string) => Promise<void>;
@@ -337,6 +341,7 @@ export const useStore = create<StoreState>((set, get) => ({
   cloudStatus: cloudConfigured ? 'signed-out' : 'disabled',
   cloudNotice: null,
   authOpen: false,
+  guestBannerDismissed: loadUiPrefs().guestBannerDismissed ?? false,
   searchOpen: false,
   settingsOpen: false,
   sidebarOpen: true,
@@ -1149,6 +1154,10 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setAuthOpen: (open) => set({ authOpen: open }),
   setCloudNotice: (notice) => set({ cloudNotice: notice }),
+  dismissGuestBanner: () => {
+    saveUiPrefs({ ...loadUiPrefs(), guestBannerDismissed: true });
+    set({ guestBannerDismissed: true });
+  },
 
   initCloud: async () => {
     if (!cloudConfigured) {
