@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store/store';
 import type { ThinkingEffort } from '../types';
 import { Modal } from './Modal';
-import { IconPlus, IconTrash } from './icons';
+import { IconKey, IconPlus, IconTrash } from './icons';
 
 export function SettingsPanel() {
   const open = useStore((s) => s.settingsOpen);
@@ -21,6 +21,7 @@ export function SettingsPanel() {
   const setActiveSearchProvider = useStore((s) => s.setActiveSearchProvider);
   const setSearchMaxResults = useStore((s) => s.setSearchMaxResults);
   const setPrivacyOpen = useStore((s) => s.setPrivacyOpen);
+  const setApiKeyGuideOpen = useStore((s) => s.setApiKeyGuideOpen);
   const resetToSample = useStore((s) => s.resetToSample);
 
   const [adding, setAdding] = useState(false);
@@ -58,9 +59,16 @@ export function SettingsPanel() {
             <IconPlus width={13} height={13} /> 添加自定义
           </button>
         </div>
-        <p className="mb-3 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+        <p className="mb-2 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
           当前生效的模型由下方「设为当前」决定。API Key 只保存在你本机浏览器中，不会被导出。
         </p>
+        <button
+          className="btn btn-outline mb-3 !text-[12px]"
+          onClick={() => setApiKeyGuideOpen(true)}
+        >
+          <IconKey width={13} height={13} />
+          如何获取 API Key（详细教程）
+        </button>
 
         {adding && (
           <div className="panel mb-3 rounded-xl p-3">

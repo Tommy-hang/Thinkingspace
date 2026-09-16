@@ -83,6 +83,7 @@ interface UIState {
   cloudNotice: string | null;
   authOpen: boolean;
   privacyOpen: boolean;
+  apiKeyGuideOpen: boolean;
   onboardingOpen: boolean;
   guestBannerDismissed: boolean;
 }
@@ -163,6 +164,7 @@ interface Actions {
 
   setAuthOpen: (open: boolean) => void;
   setPrivacyOpen: (open: boolean) => void;
+  setApiKeyGuideOpen: (open: boolean) => void;
   setOnboardingOpen: (open: boolean) => void;
   dismissGuestBanner: () => void;
   initCloud: () => Promise<void>;
@@ -362,6 +364,7 @@ export const useStore = create<StoreState>((set, get) => ({
   cloudNotice: null,
   authOpen: false,
   privacyOpen: false,
+  apiKeyGuideOpen: false,
   onboardingOpen: !(loadUiPrefs().onboardingSeen ?? false),
   guestBannerDismissed: loadUiPrefs().guestBannerDismissed ?? false,
   searchOpen: false,
@@ -1186,6 +1189,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setAuthOpen: (open) => set({ authOpen: open }),
   setPrivacyOpen: (open) => set({ privacyOpen: open }),
+  setApiKeyGuideOpen: (open) => set({ apiKeyGuideOpen: open }),
   setOnboardingOpen: (open) => {
     if (!open) saveUiPrefs({ ...loadUiPrefs(), onboardingSeen: true });
     set({ onboardingOpen: open });

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
-import { IconSpark } from './icons';
+import { IconKey, IconSpark } from './icons';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -49,6 +49,7 @@ export function HelpPanel() {
   const open = useStore((s) => s.helpOpen);
   const setOpen = useStore((s) => s.setHelpOpen);
   const setOnboardingOpen = useStore((s) => s.setOnboardingOpen);
+  const setApiKeyGuideOpen = useStore((s) => s.setApiKeyGuideOpen);
 
   return (
     <Modal open={open} title="使用说明" onClose={() => setOpen(false)} width={720}>
@@ -59,16 +60,28 @@ export function HelpPanel() {
         它保存的不是「我和 AI 说过什么」，而是「我是怎样想到这里的」。
       </p>
 
-      <button
-        className="btn btn-outline mb-5"
-        onClick={() => {
-          setOpen(false);
-          setOnboardingOpen(true);
-        }}
-      >
-        <IconSpark width={14} height={14} />
-        重新观看新手指引（了解这个产品的想法）
-      </button>
+      <div className="mb-5 flex flex-wrap gap-2">
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setOpen(false);
+            setOnboardingOpen(true);
+          }}
+        >
+          <IconSpark width={14} height={14} />
+          重新观看新手指引
+        </button>
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setOpen(false);
+            setApiKeyGuideOpen(true);
+          }}
+        >
+          <IconKey width={14} height={14} />
+          如何获取 API Key
+        </button>
+      </div>
 
       <Section title="地图（Map）">
         <Row label="平移 / 缩放">按住空白处拖动平移；滚轮缩放；右下角有缩放按钮。</Row>

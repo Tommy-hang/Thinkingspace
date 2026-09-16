@@ -204,6 +204,21 @@ export const IconEyeOff = (p: P) => (
   </svg>
 );
 
+export const IconInfo = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5" />
+    <path d="M12 7.8h.01" />
+  </svg>
+);
+
+export const IconKey = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="8" cy="15" r="3.5" />
+    <path d="m10.5 12.5 8-8M17 6l2 2M14.5 8.5 16.5 10.5" />
+  </svg>
+);
+
 export const IconHelp = (p: P) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="9" />

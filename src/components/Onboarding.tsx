@@ -5,6 +5,8 @@ import {
   IconCheck,
   IconChevronLeft,
   IconGitHub,
+  IconInfo,
+  IconKey,
   IconMap,
   IconSpark,
   IconX,
@@ -78,6 +80,7 @@ export function Onboarding() {
   const open = useStore((s) => s.onboardingOpen);
   const setOpen = useStore((s) => s.setOnboardingOpen);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
+  const setApiKeyGuideOpen = useStore((s) => s.setApiKeyGuideOpen);
   const cloudStatus = useStore((s) => s.cloudStatus);
 
   const [step, setStep] = useState(0);
@@ -405,7 +408,43 @@ export function Onboarding() {
                 想跨设备同步（换电脑、用手机也能看到），随时注册即可，本机内容会自动上传。
                 <br />
                 <br />
-                AI 能力需要你自己的 API Key（BYOK）。没配置时可以用「离线演示」模式先体验界面。
+                AI 能力需要你自己的 API Key。没配置时可以用「离线演示」模式先体验界面，
+                想拿到真实回答时，再点「如何获取 API Key」按步骤配置（大约 5 分钟）。
+              </div>
+
+              <div
+                className="rounded-xl px-4 py-3.5 text-[12.5px] leading-relaxed"
+                style={{
+                  background: 'color-mix(in srgb, #f59e0b 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, #f59e0b 38%, transparent)',
+                  color: 'var(--text)',
+                }}
+              >
+                <div
+                  className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold"
+                  style={{ color: '#b45309' }}
+                >
+                  <IconInfo width={14} height={14} />
+                  提醒
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <span style={{ color: '#b45309' }}>·</span>
+                    <span>
+                      <strong>尽量用平板或笔记本电脑</strong>。手机上所有功能都能正常使用，
+                      但地图浏览、拖拽分支这些操作，在大屏上会顺手得多。
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span style={{ color: '#b45309' }}>·</span>
+                    <span>
+                      如果你<strong>长期只在这一台设备上使用</strong>，其实更推荐直接用「导出」功能
+                      把项目存成本地 JSON 文件。
+                      我们的云端同步还在早期阶段，功能不算强大；
+                      对单设备使用来说，本地文件反而更简单也更稳妥。
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -436,6 +475,17 @@ export function Onboarding() {
               </button>
             ) : (
               <>
+                <button
+                  className="btn btn-ghost !text-[12.5px] md:!text-sm"
+                  style={{ color: 'var(--accent)' }}
+                  onClick={() => {
+                    finish();
+                    setApiKeyGuideOpen(true);
+                  }}
+                >
+                  <IconKey width={14} height={14} />
+                  如何获取 API Key
+                </button>
                 <button
                   className="btn btn-outline !text-[12.5px] md:!text-sm"
                   onClick={finish}
