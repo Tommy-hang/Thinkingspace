@@ -312,6 +312,11 @@ export function HelpPanel() {
             https://github.com/Tommy-hang/Thinkingspace
           </a>
         </Row>
+        <Row label="许可协议">
+          采用 <strong>AGPL-3.0</strong> 开源协议：可以自由使用与修改，
+          但衍生作品也必须开源——不允许被改成闭源产品。
+          「ThinkingSpace」名称与宣传海报属于作者品牌资产，不在代码许可范围内。
+        </Row>
         <Row label="遇到问题">
           欢迎在仓库的 Issues 里反馈，也可以直接用上面的「反馈问题」（会自动带上诊断信息）。
         </Row>

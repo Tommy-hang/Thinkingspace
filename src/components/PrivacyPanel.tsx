@@ -148,6 +148,13 @@ export function PrivacyPanel() {
         >
           https://github.com/Tommy-hang/Thinkingspace
         </a>
+        <p>
+          代码采用 <strong>AGPL-3.0</strong> 开源协议：任何人都可以自由使用与修改，
+          但衍生作品<strong>也必须开源</strong>——这保证了它不会被谁拿去变成闭源产品。
+        </p>
+        <p>
+          「ThinkingSpace」名称、Logo 与宣传海报属于作者品牌资产，<strong>不在代码许可范围内</strong>。
+        </p>
       </Section>
 
       <Section index={8} title="技术上的保障">

@@ -1,10 +1,12 @@
 # ThinkingSpace
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 > 把 AI 对话从一条时间线，变成一个可以探索的思维空间。
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.7**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.8**
 
 支持桌面与手机浏览器。
 
@@ -416,6 +418,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.5** ✅ 顶栏窄屏优化（自动隐藏文字、悬停显示说明）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
   - **V0.6.6** ✅ 新手教学首页加入宣传海报（横屏 / 竖屏自适应）/ README 顶部海报
   - **V0.6.7** ✅ 使用说明加入 GitHub 仓库链接
+  - **V0.6.8** ✅ 采用 AGPL-3.0 开源协议（`LICENSE` / README / 应用内说明）
 
 ---
 
@@ -485,3 +488,32 @@ Supabase 免费项目 **7 天无访问会被暂停**。`.github/workflows/keep-a
 每天访问一次数据库来避免。
 
 > 注意：GitHub 的定时工作流在仓库 **60 天无活动**后会被自动禁用。
+
+---
+
+## 许可
+
+本项目采用 **[GNU Affero General Public License v3.0](./LICENSE)（AGPL-3.0）**。
+
+```text
+Copyright (C) 2026 张文曜 (Tommy-hang)
+```
+
+简单说：
+
+- ✅ 你可以自由使用、修改、分发本项目，也可以用它做自己的项目
+- ✅ 分发或部署时**必须保留原作者署名与许可声明**
+- ⚠️ **只要把修改后的版本对外提供服务（例如部署成网站），就必须把全部源代码以 AGPL-3.0 公开**
+
+这正是它比 MIT 更严格的地方：**不允许任何人把本项目改成闭源产品再拿走。**
+
+### 品牌与商标
+
+**「ThinkingSpace」名称、Logo 与宣传海报（`宣传海报/`、`src/assets/poster-*.jpg`）
+属于作者品牌资产，不在代码许可范围内**，未经许可不得用于衍生产品或商业宣传。
+
+### 为什么用 AGPL
+
+普通开源协议（如 MIT）允许别人把代码拿去闭源、甚至直接商用。
+AGPL 额外增加了「网络服务条款」：即使不分发软件、只是放在服务器上供他人使用，也必须公开源代码。
+对「希望被广泛使用、但不希望被闭源拿走」的项目，这是最合适的保护。

@@ -95,6 +95,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.5 ✅ 顶栏窄屏优化（窄屏隐藏文字 + 悬停提示）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
   - V0.6.6 ✅ 宣传海报进产品：新手教学封面页（横屏/竖屏自适应）+ README 顶部海报
   - V0.6.7 ✅ 使用说明加入 GitHub 仓库链接
+  - V0.6.8 ✅ 采用 AGPL-3.0 开源协议（根目录 `LICENSE`，逐字使用官方原文）
 
 ## 安全规则
 
@@ -102,3 +103,5 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   不写入仓库、不参与导出。
 - 不要把 API Key 硬编码进任何源码文件。
 - 导出文件 `.thinkingspace.json` 只包含项目内容，不包含密钥。
+- 根目录 `LICENSE` 是 AGPL-3.0 官方原文，**逐字不可修改**。
+  「ThinkingSpace」名称、Logo、宣传海报属作者品牌资产，不在代码许可范围内。
