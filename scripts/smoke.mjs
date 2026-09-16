@@ -545,6 +545,27 @@ try {
   check('连线：过滤手动随意连线', !meaningfulIds.includes('manual'));
   check('连线：结果数量正确', meaningfulIds.length === 2);
 
+  // --- 语义完整性：句子边界截断（V0.6.13）---
+  const textMod = await server.ssrLoadModule('/src/lib/text.ts');
+  check('句子截断：短文本原样返回', textMod.clipAtSentence('一句话。', 20) === '一句话。');
+  check(
+    '句子截断：在句末标点处收尾',
+    textMod.clipAtSentence('第一句。第二句。第三句。', 9) === '第一句。第二句。',
+  );
+  check(
+    '句子截断：无句末标点时退到逗号',
+    textMod.clipAtSentence('一二三四五，六七八九十', 8) === '一二三四五，…',
+  );
+  check(
+    '句子截断：完全没有标点才硬截',
+    textMod.clipAtSentence('一二三四五六七八九十', 5) === '一二三四五…',
+  );
+  check('句子截断：折叠多余空白', textMod.clipAtSentence('  多   空格  ', 20) === '多 空格');
+
+  const longAnswer = '第一点。第二点。第三点。第四点。第四点。' + '后面还有很多内容。'.repeat(20);
+  check('当前理解：不再硬切半句话', titleMod.localSummary(longAnswer, 20).endsWith('。'));
+  check('当前理解：默认长度已放宽', titleMod.localSummary('啊'.repeat(200)).length === 200);
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

@@ -35,8 +35,14 @@ const DIGEST_PROMPT = [
   '你是知识整理助手。请阅读下面这段对话，输出一个 JSON 对象：',
   '{',
   '  "title": "这段对话真正讨论的核心知识点，不超过 14 个汉字，名词性短语，不要用问句",',
-  '  "summary": "用 2-3 句话说明这个主题目前形成了什么结论，直接讲结论，不要写「本文讨论了…」"',
+  '  "summary": "用 3-5 句完整的话说明这个主题目前形成了什么结论"',
   '}',
+  '',
+  '对 summary 的要求：',
+  '1. 直接讲结论，不要写「本文讨论了…」「这段对话…」这类开场；',
+  '2. 每一句都必须说完整，绝对不要出现半截话、省略号或没说完的句子；',
+  '3. 不要为了简短而省略关键信息——宁可多写一句，也不要把话说到一半。',
+  '',
   '只输出 JSON，不要任何解释或代码块标记。使用与对话相同的语言。',
 ].join('\n');
 
@@ -55,7 +61,7 @@ export async function generateDigest(opts: {
     apiKey,
     [
       { role: 'system', content: DIGEST_PROMPT },
-      { role: 'user', content: content.slice(0, 6000) },
+      { role: 'user', content: content.slice(0, 12000) },
     ],
     opts.signal,
   );
@@ -167,7 +173,7 @@ const INSIGHT_PROMPT = [
   '要求：',
   '1. 不要罗列分支名称或写成清单，要形成一个连贯的结论；',
   '2. 指出各分支之间如何相互支撑或相互制约；',
-  '3. 不超过 220 字；',
+  '3. 控制在 400 字以内，但每一句都要说完整，不要出现半截话；',
   '4. 只输出这段理解本身，不要任何前言。',
 ].join('\n');
 
@@ -209,7 +215,7 @@ export async function generateInsight(opts: {
     apiKey,
     [
       { role: 'system', content: INSIGHT_PROMPT },
-      { role: 'user', content: body.slice(0, 6000) },
+      { role: 'user', content: body.slice(0, 12000) },
     ],
     opts.signal,
   );
@@ -232,7 +238,7 @@ const SYNTHESIS_PROMPT = [
   '请把它们收敛成一个更高层的统一认识，输出 JSON：',
   '{',
   '  "title": "这次综合真正形成的知识点，不超过 14 个汉字，名词性短语",',
-  '  "conclusion": "综合后的统一理解，2-4 句；要讲出各主题之间如何相互支撑或相互制约，不要罗列",',
+  '  "conclusion": "综合后的统一理解，3-5 句完整的话；要讲出各主题之间如何相互支撑或相互制约，不要罗列，也不要出现半截话",',
   '  "contradictions": "这些主题之间尚未解决的矛盾、分歧或缺口；没有就留空字符串"',
   '}',
   '只输出 JSON，不要任何解释或代码块标记。使用与内容相同的语言。',
@@ -244,8 +250,10 @@ export function localSynthesis(
   const parts = sources
     .filter((s) => s.summary.trim())
     .map((s) => `- ${s.title}：${s.summary}`);
+  const joined = sources.map((s) => s.title).join(' + ');
   return {
-    title: sources.map((s) => s.title).join(' + ').slice(0, TITLE_MAX) || '综合理解',
+    // 标题宁可换成概括说法，也不要在词中间切断
+    title: joined.length <= TITLE_MAX ? joined : `综合 ${sources.length} 个主题`,
     conclusion: parts.length
       ? `把这几条线索放在一起，目前可以这样理解：\n${parts.join('\n')}`
       : '',
@@ -274,7 +282,7 @@ export async function generateSynthesis(opts: {
     apiKey,
     [
       { role: 'system', content: SYNTHESIS_PROMPT },
-      { role: 'user', content: body.slice(0, 8000) },
+      { role: 'user', content: body.slice(0, 16000) },
     ],
     opts.signal,
   );

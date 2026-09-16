@@ -4,6 +4,7 @@
 import type { KnowledgeMap, KnowledgePoint, ProviderConfig } from '../types';
 import { uid } from './id';
 import { extractJson, str } from './json';
+import { clipAtSentence } from './text';
 import { completeText } from './ai';
 
 export interface KnowledgeSourceItem {
@@ -54,7 +55,7 @@ function parsePoints(raw: unknown, items: KnowledgeSourceItem[], depth = 0): Kno
   for (const entry of raw) {
     if (out.length >= MAX_PER_LEVEL) break;
     const obj = entry as { label?: unknown; sources?: unknown; children?: unknown };
-    const label = str(obj.label).slice(0, 24);
+    const label = clipAtSentence(str(obj.label), 32);
     if (!label) continue;
 
     const ids = new Set<string>();
@@ -114,7 +115,7 @@ export async function generateKnowledgeMap(
     const body = items
       .map((item) => `### ${item.title}\n${item.summary}`)
       .join('\n\n')
-      .slice(0, 14000);
+      .slice(0, 20000);
 
     try {
       const raw = await completeText({
@@ -139,7 +140,7 @@ export async function generateKnowledgeMap(
           generatedAt: Date.now(),
           root: {
             id: uid('k_'),
-            label: rootLabel.slice(0, 20),
+            label: clipAtSentence(rootLabel, 28),
             sourceNodeIds: [],
             children,
           },

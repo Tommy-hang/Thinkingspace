@@ -11,13 +11,20 @@ import type {
   TopicNode,
 } from '../../types';
 import { formatSourcesForPrompt } from '../search';
+import { clipAtSentence } from '../text';
 import { getAncestors } from '../tree';
 import { SYSTEM_PROMPT, type ChatMessage } from './types';
 
-function truncate(text: string, max: number): string {
+/** 展示用（上下文透镜清单）：直接截断即可 */
+function clip(text: string, max: number): string {
   const clean = text.replace(/\s+/g, ' ').trim();
   if (clean.length <= max) return clean;
   return `${clean.slice(0, max)}…`;
+}
+
+/** 送入模型的内容：尽量截在句子边界，避免半截话影响 AI 理解 */
+function truncate(text: string, max: number): string {
+  return clipAtSentence(text, max);
 }
 
 export const ancestorPath = getAncestors;
@@ -105,7 +112,7 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
             : ''
         }`,
       },
-      { kind: 'anchor', label: '分支锚点', detail: truncate(anchor.anchorText, 40) },
+      { kind: 'anchor', label: '分支锚点', detail: clip(anchor.anchorText, 40) },
     );
   }
 
@@ -165,7 +172,7 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
   });
 
   out.push({ role: 'user', content: question });
-  parts.push({ kind: 'question', label: '当前问题', detail: truncate(question, 36) });
+  parts.push({ kind: 'question', label: '当前问题', detail: clip(question, 36) });
   totalChars += question.length;
 
   // 同一项目里、本次没有加入的主题（用于「× 其他无关主题未加入」）

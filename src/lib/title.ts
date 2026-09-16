@@ -3,6 +3,7 @@
 
 import type { ProviderConfig } from '../types';
 import { completeText, type ChatMessage } from './ai';
+import { clipAtSentence } from './text';
 
 export const TITLE_MAX = 16;
 
@@ -44,15 +45,18 @@ export function localTitle(question: string, answer: string): string {
   return cleanTitle(question) || '未命名主题';
 }
 
-/** 从回答里取一段摘要文字 */
-export function localSummary(answer: string, max = 90): string {
+/**
+ * 从回答里取一段摘要文字。
+ * 会在句子边界处收尾（而不是硬切），避免出现「半截话」。
+ */
+export function localSummary(answer: string, max = 260): string {
   const text = answer
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/[*`>|]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  return text.length <= max ? text : `${text.slice(0, max)}…`;
+  return clipAtSentence(text, max);
 }
 
 export const TITLE_SYSTEM_PROMPT = [

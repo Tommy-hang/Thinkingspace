@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { TopicNode } from '../types';
+import { clipAtSentence } from './text';
 
 /** 从输入文本里解析 @主题 引用（按标题精确或唯一前缀匹配） */
 export function extractMentions(text: string, nodes: TopicNode[]): string[] {
@@ -21,8 +22,8 @@ export function extractMentions(text: string, nodes: TopicNode[]): string[] {
   return [...ids];
 }
 
-/** 从一段内容里取一句适合作为「待解决问题」的短句 */
-export function firstSentence(text: string, max = 60): string {
+/** 从一段内容里取一句适合作为「待解决问题」的短句（尽量保持句子完整） */
+export function firstSentence(text: string, max = 90): string {
   const clean = text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/^#{1,6}\s+/gm, '')
@@ -30,6 +31,5 @@ export function firstSentence(text: string, max = 60): string {
     .replace(/\s+/g, ' ')
     .trim();
   const sentence = clean.split(/[。！？!?；;\n]/)[0]?.trim() ?? '';
-  const out = sentence || clean;
-  return out.length <= max ? out : `${out.slice(0, max)}…`;
+  return clipAtSentence(sentence || clean, max);
 }

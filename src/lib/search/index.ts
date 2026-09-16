@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { SearchProviderConfig, SearchSource } from '../../types';
+import { clipAtSentence } from '../text';
 
 export interface RunSearchInput {
   provider: SearchProviderConfig;
@@ -138,7 +139,7 @@ export async function runSearch(input: RunSearchInput): Promise<SearchSource[]> 
 export function formatSourcesForPrompt(sources: SearchSource[]): string {
   if (sources.length === 0) return '';
   const lines = sources.map((s, i) => {
-    const body = s.content.replace(/\s+/g, ' ').trim().slice(0, 1200);
+    const body = clipAtSentence(s.content.replace(/\s+/g, ' ').trim(), 1600);
     return `[${i + 1}] ${s.title}\nURL: ${s.url}\n摘要: ${body}`;
   });
   return [

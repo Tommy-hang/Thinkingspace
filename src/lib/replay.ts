@@ -3,6 +3,7 @@
 
 import type { Message, Project, ReplayEvent, TopicNode } from '../types';
 import { NODE_STATUS } from '../types';
+import { clipAtSentence } from './text';
 
 export interface ThoughtReplay {
   events: ReplayEvent[];
@@ -15,8 +16,7 @@ export interface ThoughtReplay {
 }
 
 function truncate(text: string, max: number): string {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length <= max ? clean : `${clean.slice(0, max)}…`;
+  return clipAtSentence(text, max);
 }
 
 /**
