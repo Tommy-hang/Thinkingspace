@@ -29,6 +29,35 @@ jobs:
             exit 0
           fi
 
+          # ---- 先检查连接字符串的格式，给出人能看懂的提示 ----
+          case "$DB_URL" in
+            postgresql://*|postgres://*) ;;
+            *)
+              echo "::error::连接字符串必须以 postgresql:// 开头。请到 Supabase → Project Settings → Database 复制完整的 URI。"
+              exit 1
+              ;;
+          esac
+
+          if printf '%s' "$DB_URL" | grep -q '\[YOUR-PASSWORD\]'; then
+            echo "::error::连接字符串里还是占位符 [YOUR-PASSWORD]，请替换成你自己的数据库密码。"
+            exit 1
+          fi
+
+          if printf '%s' "$DB_URL" | grep -q '[][{}]'; then
+            echo "::error::连接字符串里含有方括号或花括号。"
+            echo "::error::通常是密码里的特殊符号导致的。建议到 Supabase 重设一个「只含字母和数字」的数据库密码，再更新这个 Secret。"
+            exit 1
+          fi
+
+          # 密码里的 @ : / ? # 等符号也必须做 URL 编码，否则会解析错
+          # 简单判断：@ 只能出现在用户名和主机之间那一次
+          AT_COUNT=$(printf '%s' "$DB_URL" | tr -cd '@' | wc -c)
+          if [ "$AT_COUNT" -gt 1 ]; then
+            echo "::error::连接字符串里出现了多个 @，说明密码里有特殊符号没有转义。"
+            echo "::error::建议到 Supabase 重设一个「只含字母和数字」的数据库密码，再更新这个 Secret。"
+            exit 1
+          fi
+
           # 用 postgres:17 镜像，保证 pg_dump 版本不低于服务端
           docker run --rm -e PGURL="$DB_URL" postgres:17 \
             sh -c 'pg_dump "$PGURL" --no-owner --no-privileges' > backup.sql
