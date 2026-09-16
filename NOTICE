@@ -10,6 +10,11 @@ Copyright (C) 2026 张文曜 (Tommy-hang)
 全部文件均以 GNU Affero General Public License v3.0（AGPL-3.0）授权，
 完整条款见同目录下的 LICENSE 文件。
 
+仓库中的每个源文件开头也都带有：
+
+    SPDX-License-Identifier: AGPL-3.0-only
+    Copyright (C) 2026 张文曜 (Tommy-hang)
+
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, version 3 of the License.

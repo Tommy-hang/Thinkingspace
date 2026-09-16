@@ -6,7 +6,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.9**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.10**
 
 支持桌面与手机浏览器。
 
@@ -420,6 +420,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.7** ✅ 使用说明加入 GitHub 仓库链接
   - **V0.6.8** ✅ 采用 AGPL-3.0 开源协议（`LICENSE` / README / 应用内说明）
   - **V0.6.9** ✅ 补全知识产权与社区规范文件（CLA / 商标政策 / 版权声明 / 安全政策 / 行为准则 / Issue 模板）
+  - **V0.6.10** ✅ 版权信息补全：`LICENSE` 加版权头、全部源文件加 SPDX 版权头、`package.json` 补全元数据
 
 ---
 
@@ -511,8 +512,14 @@ Supabase 免费项目 **7 天无访问会被暂停**。`.github/workflows/keep-a
 本项目采用 **[GNU Affero General Public License v3.0](./LICENSE)（AGPL-3.0）**。
 
 ```text
+ThinkingSpace
 Copyright (C) 2026 张文曜 (Tommy-hang)
+SPDX-License-Identifier: AGPL-3.0-only
 ```
+
+> 说明：AGPL-3.0 的正文是固定法律文本（不含可填写的占位符，与 MIT 不同），
+> 因此版权信息以「版权头 + `NOTICE`」的形式附加；仓库中每个源文件开头也都带有
+> `SPDX-License-Identifier: AGPL-3.0-only` 与版权声明。
 
 简单说：
 

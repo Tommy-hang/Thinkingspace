@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { NODE_STATUS, type TopicFlowNode } from '../types';

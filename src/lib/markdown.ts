@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 /**
  * 把模型常用的 LaTeX 分隔符转换成 remark-math 认识的 `$` / `$$` 形式。
  *

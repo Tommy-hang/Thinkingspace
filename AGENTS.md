@@ -98,6 +98,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.8 ✅ 采用 AGPL-3.0 开源协议（根目录 `LICENSE`，逐字使用官方原文）
   - V0.6.9 ✅ 补全知识产权与社区规范：`CLA.md` / `CONTRIBUTING.md` / `TRADEMARK.md` /
     `NOTICE` / `SECURITY.md` / `CODE_OF_CONDUCT.md` / `.github` Issue 与 PR 模板 / `CITATION.cff`
+  - V0.6.10 ✅ 版权信息补全：`LICENSE` 版权头 + 全部源文件 SPDX 头 + `package.json` 元数据
 
 ## 安全规则
 

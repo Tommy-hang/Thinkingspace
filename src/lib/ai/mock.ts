@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 import type { StreamChatOptions } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));

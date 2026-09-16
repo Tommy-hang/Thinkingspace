@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 import type { KnowledgePoint } from '../types';
 import { flattenKnowledge } from './knowledgeMap';
 import { layoutTree } from './layout';

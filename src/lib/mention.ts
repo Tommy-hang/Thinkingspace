@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 import type { TopicNode } from '../types';
 
 /** 从输入文本里解析 @主题 引用（按标题精确或唯一前缀匹配） */

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 /** 从模型输出里尽力取出 JSON（兼容 ```json 代码块和前后废话） */
 export function extractJson(raw: string): unknown {
   const cleaned = raw

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 import type { BranchIntent, BranchSuggestion, ProviderConfig, TopicNode } from '../types';
 import { INTENT_META, INTENT_ORDER } from './branchIntent';
 import { localSummary, localTitle, TITLE_MAX } from './title';

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 /**
  * 云端联调检查：用真实 Supabase 跑一遍「登录 → 推送 → 拉取 → 增量推送」。
  *

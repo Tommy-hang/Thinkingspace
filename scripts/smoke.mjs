@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 张文曜 (Tommy-hang)
+
 /**
  * 冒烟测试：在 Node 环境中把整个应用渲染一次，用于在没有浏览器的前提下
  * 捕获「白屏级别」的运行错误（导入错误、组件渲染崩溃等）。
