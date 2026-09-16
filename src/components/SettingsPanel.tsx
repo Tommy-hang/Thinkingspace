@@ -20,6 +20,7 @@ export function SettingsPanel() {
   const setSearchEnabled = useStore((s) => s.setSearchEnabled);
   const setActiveSearchProvider = useStore((s) => s.setActiveSearchProvider);
   const setSearchMaxResults = useStore((s) => s.setSearchMaxResults);
+  const setPrivacyOpen = useStore((s) => s.setPrivacyOpen);
   const resetToSample = useStore((s) => s.resetToSample);
 
   const [adding, setAdding] = useState(false);
@@ -331,6 +332,16 @@ export function SettingsPanel() {
             />
           </label>
         </div>
+      </section>
+
+      <section className="mb-6">
+        <h3 className="mb-2 text-[13px] font-semibold">隐私与数据</h3>
+        <p className="mb-2 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+          你的思考只属于你。我们不收集、不分析、不分享任何内容。
+        </p>
+        <button className="btn btn-outline" onClick={() => setPrivacyOpen(true)}>
+          查看完整隐私说明
+        </button>
       </section>
 
       <section

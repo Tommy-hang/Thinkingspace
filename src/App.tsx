@@ -10,6 +10,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { AuthPanel } from './components/AuthPanel';
 import { GuestBanner } from './components/GuestBanner';
+import { PrivacyPanel } from './components/PrivacyPanel';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
@@ -137,6 +138,7 @@ export default function App() {
       <SettingsPanel />
       <HelpPanel />
       <AuthPanel />
+      <PrivacyPanel />
     </div>
   );
 }

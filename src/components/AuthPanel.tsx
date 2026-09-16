@@ -24,6 +24,7 @@ export function AuthPanel() {
   const cloudSyncNow = useStore((s) => s.cloudSyncNow);
   const cloudSendReset = useStore((s) => s.cloudSendReset);
   const setCloudNotice = useStore((s) => s.setCloudNotice);
+  const setPrivacyOpen = useStore((s) => s.setPrivacyOpen);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -334,11 +335,24 @@ export function AuthPanel() {
             </button>
           </div>
 
-          <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--faint)' }}>
-            登录后，你的项目会同步到云端。不登录也可以继续本地使用，内容只保存在这台设备。
-            <br />
-            AI 的 API Key 始终只保存在你自己的浏览器里，不会上传。
-          </p>
+          <div
+            className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-[11.5px] leading-relaxed"
+            style={{ background: 'var(--panel-2)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+          >
+            <div className="flex-1">
+              登录后，你的项目会同步到云端，<strong>只有你自己能看到</strong>。
+              不登录也可以继续本地使用，内容只保存在这台设备。
+              <br />
+              AI 的 API Key 始终只保存在你自己的浏览器里，不会上传。
+            </div>
+            <button
+              className="btn btn-ghost shrink-0 !px-2 !py-0.5 !text-[11.5px]"
+              style={{ color: 'var(--accent)' }}
+              onClick={() => setPrivacyOpen(true)}
+            >
+              隐私说明
+            </button>
+          </div>
         </div>
       )}
     </Modal>

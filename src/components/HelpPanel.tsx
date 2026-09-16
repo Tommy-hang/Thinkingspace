@@ -168,6 +168,10 @@ export function HelpPanel() {
         <Row label="导出">顶部下载图标 → 导出当前项目 / 全部项目，得到一个 .json 文件。</Row>
         <Row label="导入">同一个菜单 → 导入 .json，会作为新项目加入，不会覆盖现有内容。</Row>
         <Row label="重要提醒">浏览器数据可能因为清理缓存、换浏览器或换电脑而丢失。重要内容请定期导出备份。</Row>
+        <Row label="隐私">
+          不登录时内容只存在本机；登录后同步到云端，且<strong>只有你自己能看到</strong>。
+          API Key 始终只保存在你的浏览器里。详见 设置 → 隐私与数据。
+        </Row>
       </Section>
 
       <Section title="快捷键">

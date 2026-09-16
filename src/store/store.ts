@@ -81,6 +81,7 @@ interface UIState {
   cloudStatus: 'disabled' | 'signed-out' | 'syncing' | 'synced' | 'error';
   cloudNotice: string | null;
   authOpen: boolean;
+  privacyOpen: boolean;
   guestBannerDismissed: boolean;
 }
 
@@ -158,6 +159,7 @@ interface Actions {
   buildKnowledgeMap: () => Promise<void>;
 
   setAuthOpen: (open: boolean) => void;
+  setPrivacyOpen: (open: boolean) => void;
   dismissGuestBanner: () => void;
   initCloud: () => Promise<void>;
   cloudSignUp: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
@@ -355,6 +357,7 @@ export const useStore = create<StoreState>((set, get) => ({
   cloudStatus: cloudConfigured ? 'signed-out' : 'disabled',
   cloudNotice: null,
   authOpen: false,
+  privacyOpen: false,
   guestBannerDismissed: loadUiPrefs().guestBannerDismissed ?? false,
   searchOpen: false,
   settingsOpen: false,
@@ -1167,6 +1170,7 @@ export const useStore = create<StoreState>((set, get) => ({
   setKnowledgeOpen: (open) => set({ knowledgeOpen: open }),
 
   setAuthOpen: (open) => set({ authOpen: open }),
+  setPrivacyOpen: (open) => set({ privacyOpen: open }),
   setCloudNotice: (notice) => set({ cloudNotice: notice }),
   dismissGuestBanner: () => {
     saveUiPrefs({ ...loadUiPrefs(), guestBannerDismissed: true });
