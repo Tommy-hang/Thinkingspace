@@ -219,10 +219,12 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - `.github/ISSUE_TEMPLATE/{config,bug_report,feature_request}.yml` + `PULL_REQUEST_TEMPLATE.md`（PR 模板含 CLA 勾选）
   - `CITATION.cff` —— 学术引用信息
 - **V0.6.10**：版权信息补全（**AGPL 正文没有可填写的占位符，与 MIT 不同**，所以版权信息要单独附加）
-  - `LICENSE` 顶部加版权头（项目名 / 版权 / SPDX / 品牌排除），**下方 AGPL 原文逐字未动**
+  - `LICENSE` **末尾**加「版权声明」区（项目名 / 版权 / SPDX / 品牌排除），**正文逐字未动**
+    - ⚠️ 坑：版权信息放在**开头**会让 GitHub 识别不出协议（变成 `NOASSERTION`）；
+      放**末尾**才能既保留信息又让 GitHub 正确识别为 AGPL-3.0
   - **全部 65 个源文件**开头加 SPDX 头：`// SPDX-License-Identifier: AGPL-3.0-only` + 版权行
   - `package.json` 补全 `description` / `author` / `homepage` / `repository` / `bugs`
-  - README「许可」一节说明这一点的原因要求
+  - README「许可」一节说明这一点要求
 
 ---
 

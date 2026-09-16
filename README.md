@@ -517,9 +517,10 @@ Copyright (C) 2026 张文曜 (Tommy-hang)
 SPDX-License-Identifier: AGPL-3.0-only
 ```
 
-> 说明：AGPL-3.0 的正文是固定法律文本（不含可填写的占位符，与 MIT 不同），
-> 因此版权信息以「版权头 + `NOTICE`」的形式附加；仓库中每个源文件开头也都带有
-> `SPDX-License-Identifier: AGPL-3.0-only` 与版权声明。
+> 说明：AGPL-3.0 的正文是固定法律文本（不含可填写的占位符，与 MIT 不同）。
+> 版权信息附加在 [`LICENSE`](./LICENSE) **文件末尾**的「版权声明」区，
+> 并同时出现在 [`NOTICE`](./NOTICE) 与**每个源文件开头**的
+> `SPDX-License-Identifier: AGPL-3.0-only` 版权头中。
 
 简单说：
 

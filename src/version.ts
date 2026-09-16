@@ -6,4 +6,4 @@
  * 版本号遵循产品路线：V0.4 保留给「登录 + 云同步」，在此之前都属于 V0.3.x 的体验打磨。
  */
 export const APP_VERSION = 'V0.6.10';
-export const APP_VERSION_NOTE = '版权信息补全：LICENSE 版权头 / 全部源文件 SPDX 头 / package.json 元数据';
+export const APP_VERSION_NOTE = '版权信息补全：LICENSE 末尾版权声明 / 全部源文件 SPDX 头 / package.json 元数据';
