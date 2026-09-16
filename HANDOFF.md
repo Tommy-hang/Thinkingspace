@@ -325,11 +325,12 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 
 ```text
 ts.verify.a@gmail.com
-ts.verify.b@gmail.com
 密码 TestPass12345
 ```
 
 用于 `npm run cloud-check`。用户可随时在 Supabase → Authentication → Users 删除。
+
+> `ts.verify.b@gmail.com` 已在 V0.6.2 实测「自助删除账号」时被注销（验证通过）。
 
 ---
 
