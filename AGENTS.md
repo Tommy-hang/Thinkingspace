@@ -75,7 +75,10 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
   - **定时保活**：`.github/workflows/keep-alive.yml` 每天访问一次数据库，避免免费项目 7 天不活动被暂停
   - **数据迁移**：唯一入口 `migrateOpenQuestions()`（在 `src/lib/storage.ts`），本地读取与云端拉取两条路径都会调用
 - **V0.5 移动端**：手机浏览器适配（抽屉侧栏 / 工具栏收纳 / 触屏常显 / 防 iOS 缩放）✅
-- **V0.6 公开测试**：限流 / 监控 / 用量提示 / API Key 获取引导（未开始）
+- **V0.6 公开测试加固**（进行中）
+  - V0.6.0 ✅ 每日自动备份（`backup.yml`，需配 `SUPABASE_DB_URL` Secret）/ 应用内反馈入口（带诊断信息）/
+    容量保护（`schema.sql` 触发器：20 项目 / 20MB / 单项目 4MB）/ 手机侧栏长按菜单修复
+  - 待办 ⏳ 同步冲突提示 / 自助删除账号 / 用量提示
 
 ## 安全规则
 

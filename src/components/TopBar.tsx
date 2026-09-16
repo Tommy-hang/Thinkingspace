@@ -8,6 +8,7 @@ import {
   IconDownload,
   IconFolder,
   IconHelp,
+  IconInfo,
   IconLayout,
   IconMap,
   IconMoon,
@@ -45,6 +46,7 @@ export function TopBar() {
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setKnowledgeOpen = useStore((s) => s.setKnowledgeOpen);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
+  const setFeedbackOpen = useStore((s) => s.setFeedbackOpen);
   const cloudUser = useStore((s) => s.cloudUser);
   const cloudStatus = useStore((s) => s.cloudStatus);
   const setSidebarOpen = useStore((s) => s.setSidebarOpen);
@@ -462,6 +464,15 @@ export function TopBar() {
               >
                 <IconSettings width={14} height={14} />
                 <span className="flex-1">设置</span>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  close();
+                  setFeedbackOpen(true);
+                }}
+              >
+                <IconInfo width={14} height={14} />
+                <span className="flex-1">反馈问题</span>
               </MenuItem>
             </div>
           )}

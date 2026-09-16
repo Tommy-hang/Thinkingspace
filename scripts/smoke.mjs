@@ -301,7 +301,7 @@ try {
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }
-  console.log(`\nApp 渲染长度：${html.length} / Markdown 渲染长度：${mdHtml.length}`);
+  console.log(`\nAPP_HTML_LEN=${html.length}  MD_HTML_LEN=${mdHtml.length}`);
 } catch (err) {
   console.error('RENDER_FAIL');
   console.error(err);

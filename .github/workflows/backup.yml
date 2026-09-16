@@ -1,0 +1,51 @@
+name: Daily database backup
+
+# Supabase 免费版【没有自动备份】。
+# 这个工作流每天把整个数据库导出一次，保存为 GitHub artifact（保留 90 天）。
+# 如果备份失败，GitHub 会自动给你发邮件。
+#
+# 需要配置一个 Secret：
+#   仓库 Settings → Secrets and variables → Actions → Secrets
+#   名称：SUPABASE_DB_URL
+#   值：Supabase 后台 → Project Settings → Database → Connection string → URI
+#       （形如 postgresql://postgres.xxxx:密码@aws-0-xxx.pooler.supabase.com:5432/postgres）
+
+on:
+  schedule:
+    # UTC 18:40 = 北京时间 02:40
+    - cron: '40 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 导出数据库
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::未配置 SUPABASE_DB_URL，跳过备份。请在仓库 Secrets 里配置。"
+            exit 0
+          fi
+
+          # 用 postgres:17 镜像，保证 pg_dump 版本不低于服务端
+          docker run --rm -e PGURL="$DB_URL" postgres:17 \
+            sh -c 'pg_dump "$PGURL" --no-owner --no-privileges' > backup.sql
+
+          SIZE=$(wc -c < backup.sql)
+          echo "备份大小：$SIZE 字节"
+          head -c 300 backup.sql
+          echo ""
+
+          if [ "$SIZE" -lt 2000 ]; then
+            echo "::error::备份文件异常（只有 $SIZE 字节），请检查连接字符串是否正确"
+            exit 1
+          fi
+
+      - name: 保存为 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: backup.sql
+          retention-days: 90

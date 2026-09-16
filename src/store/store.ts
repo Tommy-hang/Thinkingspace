@@ -4,6 +4,7 @@ import type {
   BranchIntent,
   BranchSuggestion,
   ContextSettings,
+  ErrorLogEntry,
   GraphEdge,
   HistorySnapshot,
   Message,
@@ -85,6 +86,8 @@ interface UIState {
   privacyOpen: boolean;
   apiKeyGuideOpen: boolean;
   onboardingOpen: boolean;
+  feedbackOpen: boolean;
+  recentErrors: ErrorLogEntry[];
   guestBannerDismissed: boolean;
 }
 
@@ -166,6 +169,9 @@ interface Actions {
   setPrivacyOpen: (open: boolean) => void;
   setApiKeyGuideOpen: (open: boolean) => void;
   setOnboardingOpen: (open: boolean) => void;
+  setFeedbackOpen: (open: boolean) => void;
+  logError: (scope: string, message: string) => void;
+  clearErrors: () => void;
   dismissGuestBanner: () => void;
   initCloud: () => Promise<void>;
   cloudSignUp: (email: string, password: string) => Promise<{ needsEmailConfirm: boolean }>;
@@ -271,10 +277,12 @@ async function performFullSync(): Promise<void> {
       cloudNotice: outcome.warnings.length > 0 ? outcome.warnings.join(' ') : null,
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     useStore.setState({
       cloudStatus: 'error',
-      cloudNotice: err instanceof Error ? err.message : String(err),
+      cloudNotice: message,
     });
+    useStore.getState().logError('云端同步', message);
   }
 }
 
@@ -320,10 +328,12 @@ async function flushPush(): Promise<void> {
       cloudNotice: result.warnings.length > 0 ? result.warnings.join(' ') : null,
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     useStore.setState({
       cloudStatus: 'error',
-      cloudNotice: err instanceof Error ? err.message : String(err),
+      cloudNotice: message,
     });
+    useStore.getState().logError('云端推送', message);
   } finally {
     pushInFlight = false;
   }
@@ -366,6 +376,8 @@ export const useStore = create<StoreState>((set, get) => ({
   privacyOpen: false,
   apiKeyGuideOpen: false,
   onboardingOpen: !(loadUiPrefs().onboardingSeen ?? false),
+  feedbackOpen: false,
+  recentErrors: [],
   guestBannerDismissed: loadUiPrefs().guestBannerDismissed ?? false,
   searchOpen: false,
   settingsOpen: false,
@@ -1132,6 +1144,9 @@ export const useStore = create<StoreState>((set, get) => ({
       const message = aborted
         ? '（已停止生成）'
         : `⚠️ 调用失败：${err instanceof Error ? err.message : String(err)}`;
+      if (!aborted) {
+        get().logError('AI 调用', err instanceof Error ? err.message : String(err));
+      }
       set((s) => ({
         messages: s.messages.map((m) =>
           m.id === assistantMessage.id
@@ -1194,6 +1209,17 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!open) saveUiPrefs({ ...loadUiPrefs(), onboardingSeen: true });
     set({ onboardingOpen: open });
   },
+  setFeedbackOpen: (open) => set({ feedbackOpen: open }),
+
+  logError: (scope, message) =>
+    set((s) => ({
+      recentErrors: [
+        { at: Date.now(), scope, message: message.slice(0, 500) },
+        ...s.recentErrors,
+      ].slice(0, 8),
+    })),
+
+  clearErrors: () => set({ recentErrors: [] }),
   setCloudNotice: (notice) => set({ cloudNotice: notice }),
   dismissGuestBanner: () => {
     saveUiPrefs({ ...loadUiPrefs(), guestBannerDismissed: true });
@@ -1264,10 +1290,9 @@ export const useStore = create<StoreState>((set, get) => ({
       }
       return { needsEmailConfirm: result.needsEmailConfirm };
     } catch (err) {
-      set({
-        cloudStatus: 'error',
-        cloudNotice: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      set({ cloudStatus: 'error', cloudNotice: message });
+      get().logError('注册', message);
       throw err;
     }
   },
@@ -1280,10 +1305,9 @@ export const useStore = create<StoreState>((set, get) => ({
       set({ cloudUser: user });
       await performFullSync();
     } catch (err) {
-      set({
-        cloudStatus: 'error',
-        cloudNotice: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      set({ cloudStatus: 'error', cloudNotice: message });
+      get().logError('登录', message);
       throw err;
     }
   },

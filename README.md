@@ -2,7 +2,7 @@
 
 > 把 AI 对话从一条时间线，变成一个可以探索的思维空间。
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.5.1**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.0**
 
 支持桌面与手机浏览器。
 
@@ -393,7 +393,9 @@ scripts/cloud-check.mjs     云端同步联调
 - **V0.5 移动端** ✅ 手机浏览器适配 —— 左侧栏变抽屉、工具栏自动收纳、
   触屏常显操作按钮、防止 iOS 聚焦缩放、适配刘海屏
   - **V0.5.1** ✅ 新增「如何获取 API Key」分步教程 · 引导页补充使用建议
-- **V0.6 公开测试** ⏳ 限流 / 监控 / 用量提示
+- **V0.6 公开测试加固** 🚧
+  - **V0.6.0** ✅ 每日自动备份 / 应用内反馈入口（带诊断信息）/ 容量保护 / 手机侧栏菜单修复
+  - 后续 ⏳ 同步冲突提示 / 自助删除账号 / 用量提示
 
 ---
 
@@ -417,3 +419,49 @@ git push
 ```
 
 进度见 [Actions](https://github.com/Tommy-hang/Thinkingspace/actions)，约 2–3 分钟后网站自动更新。
+
+---
+
+## 自建部署（可选）
+
+想用自己的 Supabase 项目跑一份：
+
+1. 在 [supabase.com](https://supabase.com) 建一个项目
+2. 把 `supabase/schema.sql` 的内容粘到 **SQL Editor** 执行
+   （可重复运行；包含建表、表级授权、RLS 策略、容量保护）
+3. `Authentication → Providers` 启用 **GitHub**
+   （需要自建 GitHub OAuth App，回调地址填 `https://<项目>.supabase.co/auth/v1/callback`）
+4. `Authentication → URL Configuration` 把站点地址加进 **Redirect URLs**
+5. 本地：复制 `.env.example` 为 `.env.local`，填入 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+6. 线上：仓库 `Settings → Secrets and variables → Actions → Variables` 配同名两个值
+
+### 可选：每日自动备份
+
+Supabase 免费版**没有自动备份**。仓库里的 `.github/workflows/backup.yml`
+每天导出一次数据库并保存为 artifact（保留 90 天）：
+
+1. Supabase → `Project Settings → Database → Connection string` 复制 **URI**
+2. 仓库 `Settings → Secrets and variables → Actions → Secrets` 新建
+   `SUPABASE_DB_URL`，值为那个 URI
+3. 到 Actions 页面手动运行一次 `Daily database backup` 验证
+
+> 备份失败时 GitHub 会自动发邮件通知。
+
+### 容量保护
+
+`supabase/schema.sql` 里的触发器限制：
+
+| 限制 | 默认值 |
+| --- | --- |
+| 每个账号项目数 | 20 |
+| 每个账号内容总量 | 20 MB |
+| 单个项目内容 | 4 MB |
+
+数字可直接在 SQL 里改，改完重新运行即可。
+
+### 保持项目活跃
+
+Supabase 免费项目 **7 天无访问会被暂停**。`.github/workflows/keep-alive.yml`
+每天访问一次数据库来避免。
+
+> 注意：GitHub 的定时工作流在仓库 **60 天无活动**后会被自动禁用。

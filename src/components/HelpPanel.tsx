@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
-import { IconKey, IconSpark } from './icons';
+import { IconInfo, IconKey, IconSpark } from './icons';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -50,6 +50,7 @@ export function HelpPanel() {
   const setOpen = useStore((s) => s.setHelpOpen);
   const setOnboardingOpen = useStore((s) => s.setOnboardingOpen);
   const setApiKeyGuideOpen = useStore((s) => s.setApiKeyGuideOpen);
+  const setFeedbackOpen = useStore((s) => s.setFeedbackOpen);
 
   return (
     <Modal open={open} title="使用说明" onClose={() => setOpen(false)} width={720}>
@@ -80,6 +81,16 @@ export function HelpPanel() {
         >
           <IconKey width={14} height={14} />
           如何获取 API Key
+        </button>
+        <button
+          className="btn btn-outline"
+          onClick={() => {
+            setOpen(false);
+            setFeedbackOpen(true);
+          }}
+        >
+          <IconInfo width={14} height={14} />
+          反馈问题
         </button>
       </div>
 

@@ -12,6 +12,7 @@ import { AuthPanel } from './components/AuthPanel';
 import { GuestBanner } from './components/GuestBanner';
 import { PrivacyPanel } from './components/PrivacyPanel';
 import { ApiKeyGuide } from './components/ApiKeyGuide';
+import { FeedbackPanel } from './components/FeedbackPanel';
 import { Onboarding } from './components/Onboarding';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 import { NodeMenu } from './components/NodeMenu';
@@ -155,6 +156,7 @@ export default function App() {
       <AuthPanel />
       <PrivacyPanel />
       <ApiKeyGuide />
+      <FeedbackPanel />
       <Onboarding />
     </div>
   );

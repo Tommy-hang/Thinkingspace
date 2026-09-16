@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../store/store';
 import { NODE_STATUS, type NodeStatus, type TopicNode } from '../types';
 import { getHiddenIds } from '../lib/tree';
-import { IconEyeOff, IconX } from './icons';
+import { IconEyeOff, IconMore, IconX } from './icons';
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
@@ -93,40 +93,20 @@ export function Sidebar() {
   const renderTree = (parentId: string | null, depth: number) => {
     const list = childrenOf.get(parentId) ?? [];
     return list.map((n) => {
-      const status = NODE_STATUS[n.status];
       const hidden = hiddenIds.has(n.id);
       const dim = hidden || (statusFilter !== 'all' && n.status !== statusFilter);
       return (
         <div key={n.id}>
-          <button
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors"
-            style={{
-              paddingLeft: 8 + depth * 12,
-              background:
-                n.id === selectedNodeId
-                  ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
-                  : 'transparent',
-              color: dim ? 'var(--faint)' : 'var(--text)',
-            }}
-            title={hidden ? '已隐藏，右键可取消隐藏' : '右键查看更多操作'}
-            onClick={() => goToNode(n)}
-            onContextMenu={(e) => openMenuAt(e, n.id)}
-          >
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: hidden ? 'var(--border-strong)' : status.color }}
-            />
-            <span className="flex-1 truncate">{n.title}</span>
-            {hidden ? (
-              <IconEyeOff width={11} height={11} className="shrink-0" />
-            ) : (
-              (msgCount.get(n.id) ?? 0) > 0 && (
-                <span className="shrink-0 text-[10px]" style={{ color: 'var(--faint)' }}>
-                  {Math.ceil((msgCount.get(n.id) ?? 0) / 2)}
-                </span>
-              )
-            )}
-          </button>
+          <TreeRow
+            node={n}
+            depth={depth}
+            selected={n.id === selectedNodeId}
+            dim={dim}
+            hidden={hidden}
+            turns={Math.ceil((msgCount.get(n.id) ?? 0) / 2)}
+            onOpen={() => goToNode(n)}
+            onMenu={(x, y) => openNodeMenu(n.id, { x, y })}
+          />
           {renderTree(n.id, depth + 1)}
         </div>
       );
@@ -297,6 +277,115 @@ export function Sidebar() {
       <div className="px-1.5 pb-4">{renderTree(null, 0)}</div>
       </aside>
     </>
+  );
+}
+
+/**
+ * 侧栏主题树的一行。
+ * 桌面端：右键打开菜单；手机端：长按打开菜单，另外右侧常显一个「•••」按钮兜底。
+ */
+function TreeRow({
+  node,
+  depth,
+  selected,
+  dim,
+  hidden,
+  turns,
+  onOpen,
+  onMenu,
+}: {
+  node: TopicNode;
+  depth: number;
+  selected: boolean;
+  dim: boolean;
+  hidden: boolean;
+  turns: number;
+  onOpen: () => void;
+  onMenu: (x: number, y: number) => void;
+}) {
+  const status = NODE_STATUS[node.status];
+  const timer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+
+  const clearTimer = () => {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+  };
+
+  useEffect(() => clearTimer, []);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="group/row flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors"
+      style={{
+        paddingLeft: 8 + depth * 12,
+        background: selected ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
+        color: dim ? 'var(--faint)' : 'var(--text)',
+      }}
+      title={hidden ? '已隐藏' : '右键（手机长按）查看更多操作'}
+      onClick={() => {
+        if (longPressed.current) {
+          longPressed.current = false;
+          return;
+        }
+        onOpen();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onMenu(e.clientX, e.clientY);
+      }}
+      onTouchStart={(e) => {
+        longPressed.current = false;
+        clearTimer();
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+        timer.current = window.setTimeout(() => {
+          longPressed.current = true;
+          onMenu(x, y);
+        }, 480);
+      }}
+      onTouchEnd={clearTimer}
+      onTouchMove={clearTimer}
+      onTouchCancel={clearTimer}
+    >
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: hidden ? 'var(--border-strong)' : status.color }}
+      />
+      <span className="min-w-0 flex-1 truncate">{node.title}</span>
+
+      {hidden && <IconEyeOff width={11} height={11} className="shrink-0" />}
+      {!hidden && turns > 0 && (
+        <span className="shrink-0 text-[10px]" style={{ color: 'var(--faint)' }}>
+          {turns}
+        </span>
+      )}
+
+      <span
+        className="ts-hover-only shrink-0 rounded px-0.5 opacity-0 transition-opacity group-hover/row:opacity-100"
+        style={{ color: 'var(--faint)' }}
+        title="更多操作"
+        onClick={(e) => {
+          e.stopPropagation();
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          onMenu(rect.left + 8, rect.bottom);
+        }}
+      >
+        <IconMore width={13} height={13} />
+      </span>
+    </div>
   );
 }
 

@@ -22,6 +22,7 @@ export function SettingsPanel() {
   const setSearchMaxResults = useStore((s) => s.setSearchMaxResults);
   const setPrivacyOpen = useStore((s) => s.setPrivacyOpen);
   const setApiKeyGuideOpen = useStore((s) => s.setApiKeyGuideOpen);
+  const setFeedbackOpen = useStore((s) => s.setFeedbackOpen);
   const resetToSample = useStore((s) => s.resetToSample);
 
   const [adding, setAdding] = useState(false);
@@ -350,9 +351,14 @@ export function SettingsPanel() {
         <p className="mb-2 text-[12px] leading-relaxed" style={{ color: 'var(--muted)' }}>
           你的思考只属于你。我们不收集、不分析、不分享任何内容。
         </p>
-        <button className="btn btn-outline" onClick={() => setPrivacyOpen(true)}>
-          查看完整隐私说明
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn btn-outline" onClick={() => setPrivacyOpen(true)}>
+            查看完整隐私说明
+          </button>
+          <button className="btn btn-outline" onClick={() => setFeedbackOpen(true)}>
+            反馈问题
+          </button>
+        </div>
       </section>
 
       <section

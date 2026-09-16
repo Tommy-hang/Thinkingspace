@@ -70,7 +70,58 @@ grant select, insert, update, delete on table public.user_settings to authentica
 alter table public.projects      enable row level security;
 alter table public.user_settings enable row level security;
 
--- ---------- 6. 权限策略：每个人只能碰自己的行 ----------
+-- ---------- 6. 容量保护 ----------
+-- 免费版数据库只有 500MB，需要防止单个账号把空间占满。
+-- 想调整上限，改下面这两个数字即可，然后重新运行本文件。
+--   每个账号最多项目数：20
+--   每个账号内容总量上限：20MB
+--   单个项目内容上限：4MB
+create or replace function public.check_project_quota()
+returns trigger
+language plpgsql
+as $$
+declare
+  project_count integer;
+  used_bytes bigint;
+  this_bytes bigint;
+  max_projects constant integer := 20;
+  max_total_bytes constant bigint := 20 * 1024 * 1024;
+  max_project_bytes constant bigint := 4 * 1024 * 1024;
+begin
+  this_bytes := pg_column_size(new.content);
+
+  if this_bytes > max_project_bytes then
+    raise exception '单个项目内容过大（超过 4MB）。建议把它拆成多个项目。';
+  end if;
+
+  if tg_op = 'INSERT' then
+    select count(*) into project_count
+    from public.projects
+    where user_id = new.user_id;
+
+    if project_count >= max_projects then
+      raise exception '项目数量已达上限（% 个）。如需更多，请联系站点维护者。', max_projects;
+    end if;
+  end if;
+
+  select coalesce(sum(pg_column_size(content)), 0) into used_bytes
+  from public.projects
+  where user_id = new.user_id and id <> new.id;
+
+  if used_bytes + this_bytes > max_total_bytes then
+    raise exception '你的数据总量已达上限（20MB）。可以删除不再需要的项目，或联系站点维护者。';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists projects_quota on public.projects;
+create trigger projects_quota
+  before insert or update on public.projects
+  for each row execute function public.check_project_quota();
+
+-- ---------- 7. 权限策略：每个人只能碰自己的行 ----------
 drop policy if exists "projects_select_own" on public.projects;
 create policy "projects_select_own" on public.projects
   for select using (auth.uid() = user_id);

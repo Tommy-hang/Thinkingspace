@@ -55,6 +55,13 @@ export type BranchIntent =
   | 'connection'
   | 'custom';
 
+/** 应用内最近发生的错误，用于「反馈问题」时携带诊断信息 */
+export interface ErrorLogEntry {
+  at: number;
+  scope: string;
+  message: string;
+}
+
 export interface HistorySnapshot {
   projects: Project[];
   nodes: TopicNode[];
