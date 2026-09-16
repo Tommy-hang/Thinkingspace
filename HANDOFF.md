@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.10**
+> 最后更新：2026-09-16 · 当前版本 **V0.6.11**
 
 ---
 
@@ -224,7 +224,14 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
       放**末尾**才能既保留信息又让 GitHub 正确识别为 AGPL-3.0
   - **全部 65 个源文件**开头加 SPDX 头：`// SPDX-License-Identifier: AGPL-3.0-only` + 版权行
   - `package.json` 补全 `description` / `author` / `homepage` / `repository` / `bugs`
-  - README「许可」一节说明这一点要求
+  - README「许可」一节说明这一点
+- **V0.6.11**：禁止手动随意连线（用户反馈「节点线条可以随意连接，会扰乱对话顺序和思路」）
+  - 移除 `MapView` 的 `onConnect`；`nodesConnectable={false}`；卡片手柄 `isConnectable={false}` 且不再随 hover 显现
+  - 新增 `tree.ts` 的 `getMeaningfulEdges()`：地图**只画**「父子结构线」+「综合节点引用线」，
+    历史遗留的手动杂线**不再显示**（数据仍在，未删除）
+  - 综合引用线改为**虚线**，与结构线区分
+  - 删除 store 里已无用的 `addEdge` 动作
+  - 使用说明「连接卡片」一条改为「连线含义」要求
 
 ---
 
@@ -365,9 +372,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.10
+版本         V0.6.11
 最新提交     （见 git log -1）
-分支         main 与 v0.6.10 已同步
+分支         main 与 v0.6.11 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

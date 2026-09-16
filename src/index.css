@@ -165,12 +165,9 @@ body {
   height: 7px;
   background: var(--border-strong);
   border: none;
+  /* 连线由系统维护，不允许手动连接：手柄始终不可见，仅用于给连线定位 */
   opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.react-flow__node:hover .react-flow__handle {
-  opacity: 1;
+  pointer-events: none;
 }
 
 .react-flow__edge-path {

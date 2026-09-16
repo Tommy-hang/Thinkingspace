@@ -518,6 +518,33 @@ try {
   check('Markdown 渲染 \\(..\\) 行内公式', mdLatex.includes('class="katex"'));
   check('Markdown 渲染 \\[..\\] 块级公式', mdLatex.includes('katex-display'));
 
+  // --- 连线只保留有意义的结构线（V0.6.11：禁止手动随意连线）---
+  const edgeNodes = [
+    t('p', null),
+    t('c', 'p'),
+    t('x', null),
+    {
+      ...t('syn', null),
+      synthesis: {
+        sourceNodeIds: ['c'],
+        sources: [],
+        conclusion: '',
+        contradictions: '',
+        generatedAt: 0,
+      },
+    },
+  ];
+  const edgeList = [
+    { id: 'tree', projectId: 'p1', source: 'p', target: 'c', type: 'branch', createdAt: 0 },
+    { id: 'manual', projectId: 'p1', source: 'x', target: 'c', type: 'reference', createdAt: 0 },
+    { id: 'synth', projectId: 'p1', source: 'syn', target: 'c', type: 'reference', createdAt: 0 },
+  ];
+  const meaningfulIds = treeMod.getMeaningfulEdges(edgeList, edgeNodes).map((e) => e.id);
+  check('连线：保留父子结构线', meaningfulIds.includes('tree'));
+  check('连线：保留综合节点引用线', meaningfulIds.includes('synth'));
+  check('连线：过滤手动随意连线', !meaningfulIds.includes('manual'));
+  check('连线：结果数量正确', meaningfulIds.length === 2);
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

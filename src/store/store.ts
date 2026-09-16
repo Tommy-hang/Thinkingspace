@@ -155,7 +155,6 @@ interface Actions {
   beginNodeDrag: (id: string) => void;
   endNodeDrag: (id: string) => void;
 
-  addEdge: (source: string, target: string, type?: GraphEdge['type']) => void;
   removeEdge: (id: string) => void;
 
   sendMessage: (nodeId: string, text: string, mentions?: string[]) => Promise<void>;
@@ -1152,24 +1151,6 @@ export const useStore = create<StoreState>((set, get) => ({
       resetHistoryCoalesce();
     }
     dragStart = null;
-  },
-
-  addEdge: (source, target, type = 'branch') => {
-    pushHistory();
-    set((s) => {
-      const projectId = s.activeProjectId;
-      if (!projectId || source === target) return {};
-      if (s.edges.some((e) => e.source === source && e.target === target)) return {};
-      const edge: GraphEdge = {
-        id: uid('e_'),
-        projectId,
-        source,
-        target,
-        type,
-        createdAt: Date.now(),
-      };
-      return { edges: [...s.edges, edge] };
-    });
   },
 
   removeEdge: (id) => {

@@ -37,8 +37,8 @@ function KnowledgeNode({ data }: NodeProps<KnowledgeFlowNode>) {
         boxShadow: 'var(--shadow)',
       }}
     >
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <Handle type="source" position={Position.Right} isConnectable={false} />
 
       <div
         className="text-[13px] leading-snug font-semibold"

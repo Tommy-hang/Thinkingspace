@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
-import type { TopicNode } from '../types';
+import type { GraphEdge, TopicNode } from '../types';
 
 export function buildChildrenMap(nodes: TopicNode[]): Map<string | null, TopicNode[]> {
   const map = new Map<string | null, TopicNode[]>();
@@ -94,4 +94,22 @@ export function getVisibleNodes(nodes: TopicNode[]): TopicNode[] {
 
 export function hasChildren(nodes: TopicNode[], nodeId: string): boolean {
   return nodes.some((n) => n.parentId === nodeId);
+}
+
+/**
+ * 地图上应当画出来的连线：
+ *   1. 父子结构线（source 是 target 的父主题）
+ *   2. 综合节点指向其来源主题的引用线
+ *
+ * 其余连线（早期版本允许用户手动随意拖出来的「引用」线）一律不显示——
+ * 它们会让人误以为存在从属关系，从而扰乱对对话结构的理解。
+ * 注意：这里只是不显示，并不会删除数据。
+ */
+export function getMeaningfulEdges(edges: GraphEdge[], nodes: TopicNode[]): GraphEdge[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  return edges.filter((e) => {
+    const target = byId.get(e.target);
+    if (target && target.parentId === e.source) return true;
+    return Boolean(byId.get(e.source)?.synthesis);
+  });
 }

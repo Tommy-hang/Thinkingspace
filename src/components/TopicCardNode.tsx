@@ -43,8 +43,8 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
         cursor: 'pointer',
       }}
     >
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <Handle type="source" position={Position.Right} isConnectable={false} />
 
       <div className="mb-1.5 flex items-center gap-1.5">
         <span

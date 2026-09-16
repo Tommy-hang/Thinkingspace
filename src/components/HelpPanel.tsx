@@ -112,7 +112,10 @@ export function HelpPanel() {
         <Row label="移动卡片">直接拖动卡片，位置会自动保存。</Row>
         <Row label="打开主题">单击任意卡片，整屏展开进入聚焦视图。</Row>
         <Row label="整理布局">顶部「整理布局」把地图排成整齐的树形。折叠状态下只排列可见节点。</Row>
-        <Row label="连接卡片">拖动卡片右侧的小圆点到另一张卡片，可建立「引用」关系。</Row>
+        <Row label="连线含义">
+          细实线是<strong>父子结构</strong>（由分支自动产生），虚线是<strong>综合节点</strong>指向它的来源主题。
+          连线由系统维护，<strong>不需要也不能手动连接</strong>——这样才能保证地图始终忠实反映你的思考结构。
+        </Row>
       </Section>
 
       <Section title="卡片右键菜单（重要）">

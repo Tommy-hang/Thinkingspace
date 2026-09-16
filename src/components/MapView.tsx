@@ -15,7 +15,7 @@ import { useStore } from '../store/store';
 import { TopicCardNode } from './TopicCardNode';
 import type { TopicFlowEdge, TopicFlowNode } from '../types';
 import { EmptyState } from './EmptyState';
-import { getAncestors, getDescendantIds, getVisibleNodes } from '../lib/tree';
+import { getAncestors, getDescendantIds, getMeaningfulEdges, getVisibleNodes } from '../lib/tree';
 import { isTouchDevice } from '../lib/device';
 import { intentLabel } from '../lib/branchIntent';
 
@@ -39,7 +39,6 @@ export function MapView({ onOpenNode }: MapViewProps) {
   const revealNodeId = useStore((s) => s.revealNodeId);
   const selectNode = useStore((s) => s.selectNode);
   const moveNode = useStore((s) => s.moveNode);
-  const addEdge = useStore((s) => s.addEdge);
   const clearReveal = useStore((s) => s.clearReveal);
   const createRootNode = useStore((s) => s.createRootNode);
   const beginNodeDrag = useStore((s) => s.beginNodeDrag);
@@ -127,24 +126,29 @@ export function MapView({ onOpenNode }: MapViewProps) {
     [visibleNodes, selectedNodeId, messageCount, childCount, statusFilter, pathIds, hiddenCount],
   );
 
+  // 只画「有意义的连线」（父子结构线 + 综合节点的引用线），
+  // 早期版本允许手动随意拖线，会扰乱结构，现已禁用且不再显示。
   const flowEdges: TopicFlowEdge[] = useMemo(
     () =>
-      edges
-        .filter(
-          (e) =>
-            e.projectId === activeProjectId &&
-            visibleIds.has(e.source) &&
-            visibleIds.has(e.target),
-        )
+      getMeaningfulEdges(
+        edges.filter((e) => e.projectId === activeProjectId),
+        nodes,
+      )
+        .filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target))
         .map((e) => {
           const onPath = pathIds ? pathIds.has(e.source) && pathIds.has(e.target) : false;
+          const isReference = e.type === 'reference';
           return {
             id: e.id,
             source: e.source,
             target: e.target,
             type: 'default',
             data: { edgeType: e.type },
-            style: onPath ? { stroke: 'var(--accent)', strokeWidth: 2 } : undefined,
+            style: onPath
+              ? { stroke: 'var(--accent)', strokeWidth: 2 }
+              : isReference
+                ? { strokeDasharray: '5 4' }
+                : undefined,
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 14,
@@ -153,7 +157,7 @@ export function MapView({ onOpenNode }: MapViewProps) {
             },
           };
         }),
-    [edges, activeProjectId, visibleIds, pathIds],
+    [edges, activeProjectId, visibleIds, pathIds, nodes],
   );
 
   const onNodesChange = useCallback(
@@ -242,11 +246,6 @@ export function MapView({ onOpenNode }: MapViewProps) {
           openNodeMenu(null);
           cancelPreview();
         }}
-        onConnect={(connection) => {
-          if (connection.source && connection.target) {
-            addEdge(connection.source, connection.target, 'reference');
-          }
-        }}
         onNodeDragStart={(_e, node) => {
           dragging.current = true;
           cancelPreview();
@@ -276,6 +275,7 @@ export function MapView({ onOpenNode }: MapViewProps) {
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: 'default' }}
         nodesDraggable
+        nodesConnectable={false}
         panOnScroll
         selectionOnDrag={false}
         zoomOnDoubleClick={false}

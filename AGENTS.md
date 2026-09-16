@@ -100,6 +100,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
     `NOTICE` / `SECURITY.md` / `CODE_OF_CONDUCT.md` / `.github` Issue 与 PR 模板 / `CITATION.cff`
   - V0.6.10 ✅ 版权信息补全：`LICENSE` 末尾版权声明 + 全部源文件 SPDX 头 + `package.json` 元数据
     （⚠️ 版权声明**只能放 `LICENSE` 末尾**；放开头会让 GitHub 识别不出协议）
+  - V0.6.11 ✅ 禁止手动随意连线（地图只显示父子结构线 + 综合引用线，杂线不再显示）
 
 ## 安全规则
 
