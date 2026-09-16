@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useStore } from '../store/store';
+import posterLandscape from '../assets/poster-landscape.jpg';
+import posterPortrait from '../assets/poster-portrait.jpg';
 import {
   IconBranch,
   IconCheck,
@@ -12,7 +14,7 @@ import {
   IconX,
 } from './icons';
 
-const TOTAL = 5;
+const TOTAL = 6;
 
 function Card({ children }: { children: ReactNode }) {
   return (
@@ -137,6 +139,32 @@ export function Onboarding() {
         {/* 内容 */}
         <div className="ts-scroll flex-1 overflow-y-auto px-6 py-6">
           {step === 0 && (
+            <div className="flex flex-col items-center gap-5">
+              <img
+                src={posterLandscape}
+                alt="ThinkingSpace —— 让问题拥有空间"
+                className="hidden w-full rounded-xl md:block"
+                style={{ border: '1px solid var(--border)' }}
+              />
+              <img
+                src={posterPortrait}
+                alt="ThinkingSpace —— 让问题拥有空间"
+                className="w-full max-w-[300px] rounded-xl md:hidden"
+                style={{ border: '1px solid var(--border)' }}
+              />
+              <p
+                className="text-center text-[13px] leading-relaxed"
+                style={{ color: 'var(--muted)' }}
+              >
+                这不是又一个聊天框。
+                <br />
+                它把 AI 对话从一条时间线，变成一个
+                <strong style={{ color: 'var(--text)' }}>可以探索的思维空间</strong>。
+              </p>
+            </div>
+          )}
+
+          {step === 1 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="mb-1.5 text-[19px] leading-snug font-semibold">
@@ -198,7 +226,7 @@ export function Onboarding() {
             </div>
           )}
 
-          {step === 1 && (
+          {step === 2 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="mb-1.5 text-[19px] leading-snug font-semibold">
@@ -248,7 +276,7 @@ export function Onboarding() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="mb-1.5 text-[19px] leading-snug font-semibold">
@@ -310,7 +338,7 @@ export function Onboarding() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="mb-1.5 text-[19px] leading-snug font-semibold">
@@ -367,7 +395,7 @@ export function Onboarding() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="flex flex-col gap-4">
               <div>
                 <h2 className="mb-1.5 text-[19px] leading-snug font-semibold">

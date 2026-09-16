@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.5**
+> 最后更新：2026-09-16 · 当前版本 **V0.6.6**
 
 ---
 
@@ -197,7 +197,11 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - 提示：新增纯 CSS 的 `.ts-tip`（`data-tip` 属性 + `::after`），悬停显示名称与功能解释；触屏不显示
   - 公式：新增 `src/lib/markdown.ts` 的 `normalizeMathDelimiters()`，把模型输出的
     `\[ ... \]` / `\( ... \)` 转成 `$$...$$` / `$...$`（Markdown 会把 `\[` `\(` 当转义吃掉反斜杠，
-    这正是公式退化成 `[ h_t = ... ]`、`(h_t)` 的原因）；`Markdown.tsx` 渲染前调用；SYSTEM_PROMPT 增加第 6 条要求
+    这正是公式退化成 `[ h_t = ... ]`、`(h_t)` 的原因）；`Markdown.tsx` 渲染前调用；SYSTEM_PROMPT 增加第 6 条
+- **V0.6.6**：宣传海报进产品
+  - 原图在 `宣传海报/`（1672×941 与 941×1672，各约 2MB PNG）
+  - 压缩后放进 `src/assets/poster-landscape.jpg` / `poster-portrait.jpg`（各约 190KB，质量 85）
+  - 新手教学新增**第 0 步封面页**（`TOTAL` 5→6，横屏桌面 / 竖屏手机自适应）；README 顶部也放了横屏海报要求
 
 ---
 
@@ -338,9 +342,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.5
+版本         V0.6.6
 最新提交     （见 git log -1）
-分支         main 与 v0.6.5 已同步
+分支         main 与 v0.6.6 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

@@ -59,6 +59,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - `src/lib/diff.ts` — 句子级差异（LCS），用于「当前理解」版本确认
 - `src/lib/replay.ts` — 思考回放事件流（纯函数）
 - `src/lib/markdown.ts` — 公式分隔符归一（`\[..\]` / `\(..\)` → `$` / `$$`）
+- `src/assets/` — 图片资源（宣传海报，已压缩；原图在根目录 `宣传海报/`）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
 
@@ -92,6 +93,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
     当前理解版本差异（+/− 确认后才生效）
   - V0.6.4 ✅ 新手教学与使用说明同步新功能
   - V0.6.5 ✅ 顶栏窄屏优化（窄屏隐藏文字 + 悬停提示）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
+  - V0.6.6 ✅ 宣传海报进产品：新手教学封面页（横屏/竖屏自适应）+ README 顶部海报
 
 ## 安全规则
 
