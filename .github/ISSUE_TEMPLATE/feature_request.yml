@@ -1,0 +1,34 @@
+name: 功能建议
+description: 提出一个新想法或改进
+title: '[建议] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你的想法！请先花一分钟看看 README 的「设计原则」——
+        本项目刻意保持克制（低视觉噪声、AI 提议用户决定、不做自动连线等），
+        符合这些原则的建议更容易被采纳。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 请描述你遇到的困难或痛点，而不只是方案本身。
+      placeholder: 例如：我经常想不起来上次想到哪了……
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎么做（可选）
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternative
+    attributes:
+      label: 你试过的替代方案（可选）
+    validations:
+      required: false

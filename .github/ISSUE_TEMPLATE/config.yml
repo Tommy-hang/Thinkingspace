@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 使用说明与常见问题
+    url: https://tommy-hang.github.io/Thinkingspace/
+    about: 先在应用内「使用说明」里找一找，很多问题那里已有答案
+  - name: 安全漏洞（请勿公开）
+    url: https://github.com/Tommy-hang/Thinkingspace/security/advisories/new
+    about: 发现安全问题请用私密渠道报告，不要开公开 Issue
+  - name: 参与贡献前请先读
+    url: https://github.com/Tommy-hang/Thinkingspace/blob/main/CONTRIBUTING.md
+    about: 贡献流程、代码约定与贡献者许可协议（CLA）

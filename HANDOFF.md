@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.8**
+> 最后更新：2026-09-16 · 当前版本 **V0.6.9**
 
 ---
 
@@ -208,7 +208,16 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - `package.json` 加 `"license": "AGPL-3.0-only"`；README 顶部加协议徽章 + 末尾「许可」一节
   - 明确声明：「ThinkingSpace」名称、Logo、宣传海报属**作者品牌资产，不在代码许可范围内**
   - 应用内：隐私说明「开源透明」与使用说明「开源」两处都写明协议
-  - 版权署名：`Copyright (C) 2026 张文曜 (Tommy-hang)`要求
+  - 版权署名：`Copyright (C) 2026 张文曜 (Tommy-hang)`
+- **V0.6.9**：补全知识产权与社区规范文件（**改动功能时一般不需要动这些**）
+  - `CLA.md` —— 贡献者许可协议：贡献者保留著作权，但授予作者**重新授权（含商业授权）**的权利
+  - `CONTRIBUTING.md` —— 贡献流程、代码约定、必须跑的三项测试
+  - `TRADEMARK.md` —— 品牌政策：AGPL 授权代码，**不授权品牌**（名称/Logo/海报）
+  - `NOTICE` —— 版权声明 + AGPL 标准声明 + 资产排除 + 第三方说明
+  - `SECURITY.md` —— 安全问题私密报告渠道 + 本项目安全边界
+  - `CODE_OF_CONDUCT.md` —— Contributor Covenant 2.1（已填联系方式）
+  - `.github/ISSUE_TEMPLATE/{config,bug_report,feature_request}.yml` + `PULL_REQUEST_TEMPLATE.md`（PR 模板含 CLA 勾选）
+  - `CITATION.cff` —— 学术引用信息要求
 
 ---
 
@@ -349,9 +358,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.8
+版本         V0.6.9
 最新提交     （见 git log -1）
-分支         main 与 v0.6.8 已同步
+分支         main 与 v0.6.9 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

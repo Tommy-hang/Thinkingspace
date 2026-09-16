@@ -6,7 +6,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.8**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.9**
 
 支持桌面与手机浏览器。
 
@@ -419,6 +419,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.6** ✅ 新手教学首页加入宣传海报（横屏 / 竖屏自适应）/ README 顶部海报
   - **V0.6.7** ✅ 使用说明加入 GitHub 仓库链接
   - **V0.6.8** ✅ 采用 AGPL-3.0 开源协议（`LICENSE` / README / 应用内说明）
+  - **V0.6.9** ✅ 补全知识产权与社区规范文件（CLA / 商标政策 / 版权声明 / 安全政策 / 行为准则 / Issue 模板）
 
 ---
 
@@ -491,6 +492,20 @@ Supabase 免费项目 **7 天无访问会被暂停**。`.github/workflows/keep-a
 
 ---
 
+## 参与贡献
+
+| 我想…… | 看这里 |
+| --- | --- |
+| 贡献代码 / 文档 | [CONTRIBUTING.md](./CONTRIBUTING.md)（**需要先同意 [CLA](./CLA.md)**） |
+| 报告安全问题 | [SECURITY.md](./SECURITY.md)（**请勿公开提交细节**） |
+| 了解品牌使用规则 | [TRADEMARK.md](./TRADEMARK.md) |
+| 了解社区行为准则 | [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) |
+| 引用本项目 | [CITATION.cff](./CITATION.cff) |
+
+> 提 Pull Request 即表示你已阅读并同意 [CLA](./CLA.md) 与 [行为准则](./CODE_OF_CONDUCT.md)。
+
+---
+
 ## 许可
 
 本项目采用 **[GNU Affero General Public License v3.0](./LICENSE)（AGPL-3.0）**。
@@ -511,6 +526,7 @@ Copyright (C) 2026 张文曜 (Tommy-hang)
 
 **「ThinkingSpace」名称、Logo 与宣传海报（`宣传海报/`、`src/assets/poster-*.jpg`）
 属于作者品牌资产，不在代码许可范围内**，未经许可不得用于衍生产品或商业宣传。
+完整规则见 [TRADEMARK.md](./TRADEMARK.md)，版权与第三方说明见 [NOTICE](./NOTICE)。
 
 ### 为什么用 AGPL
 

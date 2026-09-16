@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "如果本项目对你的学习或研究有帮助，欢迎按以下格式引用。"
+title: "ThinkingSpace"
+abstract: "把 AI 对话从一条时间线，变成一个可以探索的思维空间。一个以 Topic 为基本认知单元、以 Branch 为思考扩展机制、以 Map 为全局导航界面的非线性思维工作空间。"
+type: software
+authors:
+  - name: "张文曜 (Tommy-hang)"
+    website: "https://github.com/Tommy-hang"
+repository-code: "https://github.com/Tommy-hang/Thinkingspace"
+url: "https://tommy-hang.github.io/Thinkingspace/"
+license: AGPL-3.0-only
+version: "0.6.9"
+date-released: "2026-09-16"
+keywords:
+  - AI
+  - thinking space
+  - nonlinear thinking
+  - knowledge management
+  - conversation map
+  - learning tool

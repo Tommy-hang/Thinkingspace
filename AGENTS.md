@@ -96,6 +96,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.6 ✅ 宣传海报进产品：新手教学封面页（横屏/竖屏自适应）+ README 顶部海报
   - V0.6.7 ✅ 使用说明加入 GitHub 仓库链接
   - V0.6.8 ✅ 采用 AGPL-3.0 开源协议（根目录 `LICENSE`，逐字使用官方原文）
+  - V0.6.9 ✅ 补全知识产权与社区规范：`CLA.md` / `CONTRIBUTING.md` / `TRADEMARK.md` /
+    `NOTICE` / `SECURITY.md` / `CODE_OF_CONDUCT.md` / `.github` Issue 与 PR 模板 / `CITATION.cff`
 
 ## 安全规则
 
@@ -105,3 +107,6 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - 导出文件 `.thinkingspace.json` 只包含项目内容，不包含密钥。
 - 根目录 `LICENSE` 是 AGPL-3.0 官方原文，**逐字不可修改**。
   「ThinkingSpace」名称、Logo、宣传海报属作者品牌资产，不在代码许可范围内。
+- 知识产权与社区文件（改动功能时一般不需要动）：
+  `LICENSE` / `NOTICE` / `TRADEMARK.md` / `CLA.md` / `CONTRIBUTING.md` /
+  `SECURITY.md` / `CODE_OF_CONDUCT.md` / `CITATION.cff` / `.github/*_TEMPLATE*`

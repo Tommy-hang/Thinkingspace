@@ -1,0 +1,77 @@
+name: 报告问题
+description: 使用中遇到错误、异常或界面问题
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！提交前请先确认你用的是**最新版本**（界面右上角显示版本号）。
+
+        ⚠️ 请不要在这里粘贴 API Key、数据库密码或他人隐私信息。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 描述你遇到的现象。截图会很有帮助（可直接拖进来）。
+      placeholder: 例如：我在手机上点开侧栏后，点主题没有反应。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 看到……
+    validations:
+      required: true
+
+  - type: input
+    id: expected
+    attributes:
+      label: 你期望的结果
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本号
+      description: 界面右上角显示，例如 V0.6.8
+      placeholder: V0.6.8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: 设备
+      options:
+        - 电脑（Windows）
+        - 电脑（macOS）
+        - 电脑（Linux）
+        - 平板
+        - 手机
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器
+      placeholder: 例如 Chrome 130 / Safari / Edge
+    validations:
+      required: false
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断信息（可选，但很有用）
+      description: 应用内「反馈问题」里可以一键复制诊断信息，粘贴到这里即可。它不包含你的对话内容。
+      render: text
+    validations:
+      required: false

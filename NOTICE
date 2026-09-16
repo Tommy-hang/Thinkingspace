@@ -1,0 +1,50 @@
+ThinkingSpace
+让 AI 对话从一条时间线，变成一个可以探索的思维空间。
+Copyright (C) 2026 张文曜 (Tommy-hang)
+
+====================================================================
+一、代码许可
+====================================================================
+
+本仓库中，除下方「二、不属于代码许可范围」所列内容外，
+全部文件均以 GNU Affero General Public License v3.0（AGPL-3.0）授权，
+完整条款见同目录下的 LICENSE 文件。
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+AGPL-3.0 的核心义务：只要你把修改后的版本对外提供服务（包括部署成网站），
+就必须把全部源代码以 AGPL-3.0 公开，并保留本版权声明。
+
+====================================================================
+二、不属于代码许可范围（品牌资产）
+====================================================================
+
+以下内容属于作者品牌资产，AGPL-3.0 **不授予**任何使用权：
+
+  1. 名称「ThinkingSpace」及其中文表述
+  2. Logo 与应用图标
+  3. 宣传海报：宣传海报/、src/assets/poster-*.jpg
+  4. 项目对外视觉识别
+
+使用规则详见 TRADEMARK.md。
+
+====================================================================
+三、第三方内容
+====================================================================
+
+  1. 第三方依赖库的版权归各自作者所有，遵循各自许可协议
+     （见 package.json 与 node_modules 中各包的 LICENSE）。
+
+  2. 界面中由 AI 生成、或由用户输入的内容，不属于本项目版权范围。
+
+  3. 本项目不包含任何 API Key、密钥或用户数据。
