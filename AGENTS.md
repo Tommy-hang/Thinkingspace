@@ -58,6 +58,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - `src/lib/usage.ts` — 云端用量估算（上限需与 `supabase/schema.sql` 保持一致）
 - `src/lib/diff.ts` — 句子级差异（LCS），用于「当前理解」版本确认
 - `src/lib/replay.ts` — 思考回放事件流（纯函数）
+- `src/lib/markdown.ts` — 公式分隔符归一（`\[..\]` / `\(..\)` → `$` / `$$`）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
 
@@ -89,6 +90,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
     （`schema.sql` 的 `delete_my_account()`）/ 云端用量提示
   - V0.6.3 ✅ 上下文透镜（回答旁可见 AI 用了哪些内容）/ 综合节点（多主题收敛）/ 思考回放 /
     当前理解版本差异（+/− 确认后才生效）
+  - V0.6.4 ✅ 新手教学与使用说明同步新功能
+  - V0.6.5 ✅ 顶栏窄屏优化（窄屏隐藏文字 + 悬停提示）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
 
 ## 安全规则
 

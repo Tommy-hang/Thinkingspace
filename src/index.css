@@ -283,6 +283,50 @@ body {
   cursor: pointer;
 }
 
+/*
+ * 悬停提示：窄屏隐藏按钮文字后，鼠标悬停显示「名称 + 功能解释」。
+ * 用纯 CSS 实现，避免额外 JS；触屏没有 hover，自动不显示。
+ */
+.ts-tip {
+  position: relative;
+}
+
+.ts-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 240px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.5;
+  font-size: 11.5px;
+  font-weight: 400;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 70;
+}
+
+.ts-tip:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (hover: none) {
+  .ts-tip::after {
+    display: none;
+  }
+}
+
 .ts-prose {
   line-height: 1.7;
   word-break: break-word;

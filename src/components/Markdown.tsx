@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import { normalizeMathDelimiters } from '../lib/markdown';
 
 const components: Components = {
   a: ({ node: _node, ...props }) => (
@@ -28,7 +29,7 @@ function MarkdownImpl({ content }: { content: string }) {
         rehypePlugins={rehypePlugins}
         components={components}
       >
-        {content}
+        {normalizeMathDelimiters(content)}
       </ReactMarkdown>
     </div>
   );

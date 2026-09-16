@@ -68,6 +68,21 @@ export function TopBar() {
 
   const project = projects.find((p) => p.id === activeProjectId) ?? null;
 
+  const cloudLabel = cloudUser ? '账号' : cloudStatus === 'disabled' ? '本机模式' : '登录';
+  const cloudTip = cloudUser
+    ? `已登录 ${cloudUser.email} · ${
+        cloudStatus === 'synced'
+          ? '已同步'
+          : cloudStatus === 'syncing'
+            ? '同步中'
+            : cloudStatus === 'error'
+              ? '同步出错'
+              : '未登录'
+      }`
+    : cloudStatus === 'disabled'
+      ? '云端未启用（内容仅保存在本机）'
+      : '登录 / 注册（可跨设备同步）';
+
   const handleExport = (all: boolean) => {
     const bundle = buildBundle(
       { projects, nodes, edges, messages },
@@ -92,16 +107,22 @@ export function TopBar() {
       style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)', height: 52 }}
     >
       <button
-        className="btn btn-ghost px-2"
+        className="btn btn-ghost ts-tip shrink-0 px-2"
+        data-tip={sidebarOpen ? '收起侧栏' : '展开侧栏'}
         title={sidebarOpen ? '收起侧栏' : '展开侧栏'}
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         <IconBranch width={17} height={17} />
       </button>
 
-      <div className="mr-1 hidden items-center gap-2 pl-1 md:flex">
-        <span className="text-[15px] font-semibold tracking-tight">ThinkingSpace</span>
-        <span className="chip hidden sm:inline-flex" title="当前前端版本，用于确认是否已刷新到最新代码">
+      <div className="mr-1 hidden shrink-0 items-center gap-2 pl-1 md:flex">
+        <span className="text-[15px] font-semibold tracking-tight whitespace-nowrap">
+          ThinkingSpace
+        </span>
+        <span
+          className="chip hidden whitespace-nowrap sm:inline-flex"
+          title="当前前端版本，用于确认是否已刷新到最新代码"
+        >
           {APP_VERSION}
         </span>
       </div>
@@ -110,7 +131,7 @@ export function TopBar() {
         <Popover
           width={280}
           button={
-            <button className="btn btn-outline max-w-[130px] md:max-w-[220px]">
+            <button className="btn btn-outline min-w-0 max-w-[130px] shrink md:max-w-[150px] xl:max-w-[180px]">
               <IconFolder width={14} height={14} />
               <span className="truncate">{project.title}</span>
             </button>
@@ -184,20 +205,22 @@ export function TopBar() {
         </Popover>
       )}
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex min-w-0 items-center gap-1">
         <button
-          className="btn btn-ghost hidden px-2 md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 px-2 lg:inline-flex"
           onClick={undo}
           disabled={!canUndo}
+          data-tip="撤销 (Ctrl+Z)"
           title="撤销 (Ctrl+Z)"
           style={{ opacity: canUndo ? 1 : 0.32 }}
         >
           <IconUndo />
         </button>
         <button
-          className="btn btn-ghost hidden px-2 md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 px-2 lg:inline-flex"
           onClick={redo}
           disabled={!canRedo}
+          data-tip="重做 (Ctrl+Shift+Z)"
           title="重做 (Ctrl+Shift+Z)"
           style={{ opacity: canRedo ? 1 : 0.32 }}
         >
@@ -205,65 +228,75 @@ export function TopBar() {
         </button>
 
         <button
-          className="btn btn-ghost px-2 md:px-3"
+          className="btn btn-ghost ts-tip shrink-0 px-2 md:px-3"
           onClick={() => setSearchOpen(true)}
+          data-tip="搜索标题、摘要与全部对话 (Ctrl+K)"
           title="搜索 (Ctrl+K)"
         >
           <IconSearch />
-          <span className="hidden md:inline">搜索</span>
+          <span className="hidden whitespace-nowrap xl:inline">搜索</span>
         </button>
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => setKnowledgeOpen(true)}
+          data-tip="由全部卡片的「当前理解」生成知识点思维导图"
           title="知识地图（由全部卡片的「当前理解」生成）"
           disabled={!project}
         >
           <IconMap />
-          <span className="hidden lg:inline">知识地图</span>
+          <span className="hidden whitespace-nowrap 2xl:inline">知识地图</span>
         </button>
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => setReplayOpen(true)}
+          data-tip="回放这张地图是怎么一步步长出来的"
           title="思考回放（看这棵树是怎么长出来的）"
           disabled={!project}
         >
           <IconHistory />
-          <span className="hidden lg:inline">回放</span>
+          <span className="hidden whitespace-nowrap xl:inline">回放</span>
         </button>
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => setSynthesisOpen(true)}
+          data-tip="选中多个主题，收敛成更高层的认识"
           title="综合多个主题，收敛成更高层的认识"
           disabled={!project}
         >
           <IconLayers />
-          <span className="hidden lg:inline">综合</span>
+          <span className="hidden whitespace-nowrap xl:inline">综合</span>
         </button>
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => applyAutoLayout()}
+          data-tip="把地图排成整齐的树形"
           title="整理地图布局"
           disabled={!project}
         >
           <IconLayout />
-          <span className="hidden lg:inline">整理布局</span>
+          <span className="hidden whitespace-nowrap 2xl:inline">整理布局</span>
         </button>
         <button
-          className="btn btn-ghost px-2 md:px-3"
+          className="btn btn-ghost ts-tip shrink-0 px-2 md:px-3"
           onClick={() => createRootNode()}
+          data-tip="新建一个主题"
           title="新建主题"
           disabled={!project}
         >
           <IconPlus />
-          <span className="hidden md:inline">新主题</span>
+          <span className="hidden whitespace-nowrap xl:inline">新主题</span>
         </button>
 
         <Popover
-          className="hidden md:block"
+          className="hidden lg:block"
           align="right"
           width={220}
           button={
-            <button className="btn btn-ghost" title="导入 / 导出">
+            <button
+              className="btn btn-ghost ts-tip shrink-0"
+              data-tip="导出 / 导入项目"
+              title="导入 / 导出"
+            >
               <IconDownload />
             </button>
           }
@@ -299,7 +332,8 @@ export function TopBar() {
         </Popover>
 
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
+          data-tip="切换深色 / 浅色"
           title="切换深浅色"
           onClick={() =>
             updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })
@@ -308,23 +342,10 @@ export function TopBar() {
           {settings.theme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>
         <button
-          className="btn btn-ghost px-2 md:px-3"
+          className="btn btn-ghost ts-tip shrink-0 px-2 md:px-3"
           onClick={() => setAuthOpen(true)}
-          title={
-            cloudUser
-              ? `已登录 ${cloudUser.email} · ${
-                  cloudStatus === 'synced'
-                    ? '已同步'
-                    : cloudStatus === 'syncing'
-                      ? '同步中'
-                      : cloudStatus === 'error'
-                        ? '同步出错'
-                        : '未登录'
-                }`
-              : cloudStatus === 'disabled'
-                ? '云端未启用（内容仅保存在本机）'
-                : '登录 / 注册（可跨设备同步）'
-          }
+          data-tip={cloudTip}
+          title={cloudTip}
           style={{ color: cloudUser ? 'var(--accent)' : undefined }}
         >
           <IconUser />
@@ -343,33 +364,33 @@ export function TopBar() {
               }}
             />
           )}
-          <span className="hidden md:inline">
-            {cloudUser ? '账号' : cloudStatus === 'disabled' ? '本机模式' : '登录'}
-          </span>
+          <span className="hidden whitespace-nowrap xl:inline">{cloudLabel}</span>
         </button>
 
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => setHelpOpen(true)}
+          data-tip="使用说明"
           title="使用说明"
         >
           <IconHelp />
         </button>
         <button
-          className="btn btn-ghost hidden md:inline-flex"
+          className="btn btn-ghost ts-tip hidden shrink-0 lg:inline-flex"
           onClick={() => setSettingsOpen(true)}
+          data-tip="设置（API Key / 模型 / 隐私）"
           title="设置"
         >
           <IconSettings />
         </button>
 
-        {/* 移动端：更多 */}
+        {/* 窄屏：更多 */}
         <Popover
-          className="md:hidden"
+          className="lg:hidden"
           align="right"
           width={220}
           button={
-            <button className="btn btn-ghost px-2" title="更多">
+            <button className="btn btn-ghost ts-tip shrink-0 px-2" data-tip="更多操作" title="更多">
               <IconMore />
             </button>
           }

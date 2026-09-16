@@ -496,6 +496,25 @@ try {
   check('回放：统计被搁置分支', replay.abandoned.some((a) => a.id === 'c'));
   check('回放：时间范围正确', replay.startAt === 100 && replay.endAt === 500);
 
+  // --- 公式分隔符兼容（V0.6.4）：模型输出的 \[..\] / \(..\) 也能渲染 ---
+  const mdNormMod = await server.ssrLoadModule('/src/lib/markdown.ts');
+  const n1 = mdNormMod.normalizeMathDelimiters('前文\n\n\\[ h_t = \\tanh(W_x x_t) \\]\n\n后文');
+  check('公式分隔符：\\[..\\] 转成 $$', n1.includes('$$') && n1.includes('h_t = \\tanh'));
+  check('公式分隔符：\\[..\\] 不再残留', !n1.includes('\\['));
+  const n2 = mdNormMod.normalizeMathDelimiters('其中 \\(h_t\\) 是隐藏状态');
+  check('公式分隔符：\\(..\\) 转成 $', n2.includes('$h_t$') && !n2.includes('\\('));
+  const n3 = mdNormMod.normalizeMathDelimiters('```\n\\(x\\)\n```');
+  check('公式分隔符：代码块内不改动', n3.includes('\\(x\\)'));
+  const n4 = mdNormMod.normalizeMathDelimiters('`\\(y\\)` 与 \\(z\\)');
+  check('公式分隔符：行内代码不改动', n4.includes('`\\(y\\)`') && n4.includes('$z$'));
+  check('公式分隔符：空字符串安全', mdNormMod.normalizeMathDelimiters('') === '');
+
+  const mdLatex = renderToString(
+    React.createElement(mdMod.Markdown, { content: '行内 \\(a^2\\) 与\n\n\\[ b^2 = c^2 \\]\n' }),
+  );
+  check('Markdown 渲染 \\(..\\) 行内公式', mdLatex.includes('class="katex"'));
+  check('Markdown 渲染 \\[..\\] 块级公式', mdLatex.includes('katex-display'));
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }
