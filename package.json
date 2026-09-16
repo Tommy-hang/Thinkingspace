@@ -1,7 +1,7 @@
 {
   "name": "thinkingspace",
   "private": true,
-  "version": "0.6.11",
+  "version": "0.6.12",
   "description": "把 AI 对话从一条时间线，变成一个可以探索的思维空间。",
   "license": "AGPL-3.0-only",
   "author": "张文曜 (Tommy-hang) <https://github.com/Tommy-hang>",

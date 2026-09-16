@@ -6,7 +6,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.11**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.12**
 
 支持桌面与手机浏览器。
 
@@ -422,6 +422,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.9** ✅ 补全知识产权与社区规范文件（CLA / 商标政策 / 版权声明 / 安全政策 / 行为准则 / Issue 模板）
   - **V0.6.10** ✅ 版权信息补全：`LICENSE` 加版权头、全部源文件加 SPDX 版权头、`package.json` 补全元数据
   - **V0.6.11** ✅ 禁止手动随意连线：地图只显示父子结构线与综合引用线，杂线不再显示
+  - **V0.6.12** ✅ 新手教学新增「写给谁用」页（具体场景 + 处境对照），并整体放大（弹窗更宽、字号更大）
 
 ---
 
