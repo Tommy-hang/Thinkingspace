@@ -18,6 +18,94 @@ export interface WorkspaceSlice {
   messages: Message[];
 }
 
+/** 克隆出来的一个完整项目（含它的全部内容） */
+export interface ClonedProject {
+  project: Project;
+  nodes: TopicNode[];
+  edges: GraphEdge[];
+  messages: Message[];
+}
+
+/**
+ * 把一个项目整体克隆一份（生成全新的 id），用于同步冲突时「保留另一份」。
+ *
+ * 与 copySubtreeToProject 的区别：这里克隆的是**整个项目**（可能有多棵根主题），
+ * 而且不改变原数据，只把克隆出来的片段交给调用方去合并。
+ */
+export function cloneProject(
+  slice: WorkspaceSlice,
+  projectId: string,
+  overrides: { title?: string; id?: string } = {},
+): ClonedProject | null {
+  const source = slice.projects.find((p) => p.id === projectId);
+  if (!source) return null;
+
+  const now = Date.now();
+  const sourceNodes = slice.nodes.filter((n) => n.projectId === projectId);
+  const nodeIds = new Set(sourceNodes.map((n) => n.id));
+
+  const nodeMap = new Map<string, string>();
+  for (const id of nodeIds) nodeMap.set(id, uid('n_'));
+
+  const newProjectId = overrides.id ?? uid('p_');
+
+  const nodes: TopicNode[] = sourceNodes.map((n) => ({
+    ...n,
+    id: nodeMap.get(n.id)!,
+    projectId: newProjectId,
+    parentId: n.parentId && nodeMap.has(n.parentId) ? nodeMap.get(n.parentId)! : null,
+    anchor: n.anchor
+      ? {
+          ...n.anchor,
+          sourceNodeId: nodeMap.get(n.anchor.sourceNodeId) ?? n.anchor.sourceNodeId,
+        }
+      : undefined,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  const edges: GraphEdge[] = slice.edges
+    .filter((e) => e.projectId === projectId)
+    .map((e) => ({
+      ...e,
+      id: uid('e_'),
+      projectId: newProjectId,
+      source: nodeMap.get(e.source) ?? e.source,
+      target: nodeMap.get(e.target) ?? e.target,
+      createdAt: now,
+    }));
+
+  const messageMap = new Map<string, string>();
+  const messages: Message[] = slice.messages
+    .filter((m) => nodeIds.has(m.nodeId))
+    .map((m) => {
+      const id = uid('m_');
+      messageMap.set(m.id, id);
+      return { ...m, id, nodeId: nodeMap.get(m.nodeId)!, pending: false };
+    });
+
+  const project: Project = {
+    ...source,
+    id: newProjectId,
+    title: overrides.title ?? source.title,
+    openQuestions: (source.openQuestions ?? []).map((q) => ({
+      ...q,
+      id: uid('q_'),
+      sourceNodeId: q.sourceNodeId
+        ? (nodeMap.get(q.sourceNodeId) ?? q.sourceNodeId)
+        : undefined,
+      sourceMessageId: q.sourceMessageId ? messageMap.get(q.sourceMessageId) : undefined,
+    })),
+    // 新项目还没有和云端建立版本对应关系，等下一次同步时作为新项目上传
+    cloudRevision: undefined,
+    cloudUpdatedAt: undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return { project, nodes, edges, messages };
+}
+
 /**
  * 把 nodeId 及其所有后代移动到 targetProjectId。
  *

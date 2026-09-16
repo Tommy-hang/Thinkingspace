@@ -10,6 +10,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { AuthPanel } from './components/AuthPanel';
 import { GuestBanner } from './components/GuestBanner';
+import { SyncConflictBanner } from './components/SyncConflictBanner';
 import { PrivacyPanel } from './components/PrivacyPanel';
 import { ApiKeyGuide } from './components/ApiKeyGuide';
 import { FeedbackPanel } from './components/FeedbackPanel';
@@ -126,6 +127,7 @@ export default function App() {
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar />
       <GuestBanner />
+      <SyncConflictBanner />
       <div className="relative flex min-h-0 flex-1">
         {sidebarOpen && <Sidebar />}
         <main className="relative min-h-0 flex-1">

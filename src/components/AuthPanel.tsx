@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
-import { IconCheck, IconGitHub, IconRefresh } from './icons';
+import { formatBytes, summarizeUsage, USAGE_LIMITS } from '../lib/usage';
+import { IconCheck, IconGitHub, IconInfo, IconRefresh, IconTrash } from './icons';
 
 const STATUS_TEXT: Record<string, string> = {
   disabled: '未启用',
@@ -23,8 +24,16 @@ export function AuthPanel() {
   const cloudSignOut = useStore((s) => s.cloudSignOut);
   const cloudSyncNow = useStore((s) => s.cloudSyncNow);
   const cloudSendReset = useStore((s) => s.cloudSendReset);
+  const cloudDeleteAccount = useStore((s) => s.cloudDeleteAccount);
   const setCloudNotice = useStore((s) => s.setCloudNotice);
   const setPrivacyOpen = useStore((s) => s.setPrivacyOpen);
+  const projects = useStore((s) => s.projects);
+  const nodes = useStore((s) => s.nodes);
+  const edges = useStore((s) => s.edges);
+  const messages = useStore((s) => s.messages);
+  const syncConflicts = useStore((s) => s.syncConflicts);
+  const dismissConflicts = useStore((s) => s.dismissConflicts);
+  const setActiveProject = useStore((s) => s.setActiveProject);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -32,6 +41,15 @@ export function AuthPanel() {
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteDraft, setDeleteDraft] = useState('');
+  const [alsoClearLocal, setAlsoClearLocal] = useState(true);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const usage = useMemo(
+    () => summarizeUsage(projects, nodes, edges, messages),
+    [projects, nodes, edges, messages],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -103,7 +121,28 @@ export function AuthPanel() {
     }
   };
 
+  const confirmDelete = async () => {
+    setDeleteError(null);
+    if (!cloudUser) return;
+    if (deleteDraft.trim().toLowerCase() !== cloudUser.email.toLowerCase()) {
+      setDeleteError('输入的邮箱与当前账号不一致，请重新输入。');
+      return;
+    }
+    setBusy(true);
+    try {
+      await cloudDeleteAccount(alsoClearLocal);
+      setDeleteOpen(false);
+      setDeleteDraft('');
+      setInfo('账号与云端数据已删除。');
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
+    <>
     <Modal
       open={open}
       title={cloudUser ? '我的账号' : '登录 / 注册'}
@@ -145,6 +184,88 @@ export function AuthPanel() {
               </span>
             </div>
           </div>
+
+          <div className="rounded-xl p-3.5" style={{ border: '1px solid var(--border)' }}>
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="text-[11px]" style={{ color: 'var(--faint)' }}>
+                云端用量（按本机内容估算）
+              </span>
+            </div>
+
+            <UsageBar
+              label="项目数"
+              ratio={usage.projects / USAGE_LIMITS.maxProjects}
+              text={`${usage.projects} / ${USAGE_LIMITS.maxProjects} 个`}
+            />
+            <UsageBar
+              label="内容总量"
+              ratio={usage.totalBytes / USAGE_LIMITS.maxTotalBytes}
+              text={`${formatBytes(usage.totalBytes)} / ${formatBytes(USAGE_LIMITS.maxTotalBytes)}`}
+            />
+
+            {usage.largest && (
+              <div
+                className="mt-1.5 text-[11px] leading-relaxed"
+                style={{ color: 'var(--faint)' }}
+              >
+                最大的项目：「{usage.largest.title}」{formatBytes(usage.largest.bytes)}
+                （单项目上限 {formatBytes(USAGE_LIMITS.maxProjectBytes)}）
+              </div>
+            )}
+          </div>
+
+          {syncConflicts.length > 0 && (
+            <div
+              className="rounded-xl p-3.5"
+              style={{
+                border: '1px solid color-mix(in srgb, #f59e0b 40%, transparent)',
+                background: 'color-mix(in srgb, #f59e0b 8%, transparent)',
+              }}
+            >
+              <div
+                className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold"
+                style={{ color: '#b45309' }}
+              >
+                <IconInfo width={14} height={14} />
+                同步冲突 · {syncConflicts.length}
+              </div>
+              <p className="mb-2 text-[11.5px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+                两台设备修改了同一份内容。我们<strong>没有覆盖任何一边</strong>，
+                而是把另一份另存成了新的项目。你可以打开它、整理后删掉不需要的那份。
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {syncConflicts.map((c, i) => (
+                  <div
+                    key={`${c.projectId}-${c.copyProjectId}-${i}`}
+                    className="rounded-lg p-2.5"
+                    style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}
+                  >
+                    <div className="text-[12px] leading-relaxed" style={{ color: 'var(--text)' }}>
+                      「{c.title}」{c.kept === 'cloud' ? '保留了云端版本' : '保留了本机版本'}，
+                      另一份已另存为「{c.copyTitle}」。
+                    </div>
+                    {c.copyProjectId && (
+                      <button
+                        className="btn btn-outline mt-2 !px-2 !py-0.5 !text-[11.5px]"
+                        onClick={() => {
+                          setActiveProject(c.copyProjectId);
+                          setOpen(false);
+                        }}
+                      >
+                        打开副本
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                className="btn btn-ghost mt-2 !px-2 !py-0.5 !text-[11.5px]"
+                onClick={dismissConflicts}
+              >
+                知道了，收起提示
+              </button>
+            </div>
+          )}
 
           {cloudNotice && (
             <div
@@ -195,6 +316,30 @@ export function AuthPanel() {
               }}
             >
               退出登录
+            </button>
+          </div>
+
+          <div
+            className="rounded-xl p-3"
+            style={{ border: '1px solid color-mix(in srgb, #dc2626 40%, transparent)' }}
+          >
+            <div className="mb-1 text-[13px] font-semibold" style={{ color: '#dc2626' }}>
+              删除账号
+            </div>
+            <p className="mb-2 text-[11.5px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+              永久删除你的账号，以及云端保存的全部项目。此操作不可恢复，建议先导出备份。
+            </p>
+            <button
+              className="btn"
+              style={{ border: '1px solid #dc2626', color: '#dc2626' }}
+              onClick={() => {
+                setDeleteDraft('');
+                setDeleteError(null);
+                setDeleteOpen(true);
+              }}
+            >
+              <IconTrash width={14} height={14} />
+              删除我的账号
             </button>
           </div>
         </div>
@@ -356,5 +501,127 @@ export function AuthPanel() {
         </div>
       )}
     </Modal>
+
+    {deleteOpen && cloudUser && (
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+        style={{ background: 'rgba(9,9,11,0.5)' }}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setDeleteOpen(false);
+        }}
+      >
+        <div
+          className="panel ts-fade-up w-full max-w-[420px] rounded-2xl p-5"
+          style={{ boxShadow: 'var(--shadow-lg)' }}
+        >
+          <h3 className="mb-2 text-sm font-semibold" style={{ color: '#dc2626' }}>
+            确认删除账号
+          </h3>
+          <p className="mb-3 text-[12.5px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+            这会永久删除{' '}
+            <strong style={{ color: 'var(--text)' }}>{cloudUser.email}</strong>{' '}
+            的账号，以及云端保存的全部项目与设置，<strong>无法恢复</strong>。
+          </p>
+
+          <label className="mb-1 block text-[12px]" style={{ color: 'var(--muted)' }}>
+            请输入你的邮箱以确认：
+          </label>
+          <input
+            className="input mb-3"
+            autoFocus
+            placeholder={cloudUser.email}
+            value={deleteDraft}
+            onChange={(e) => setDeleteDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void confirmDelete();
+            }}
+          />
+
+          <button
+            className="mb-3 flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-[12px] leading-relaxed"
+            style={{
+              background: 'var(--panel-2)',
+              border: '1px solid var(--border)',
+              color: 'var(--muted)',
+            }}
+            onClick={() => setAlsoClearLocal((v) => !v)}
+          >
+            <span
+              className="mt-[2px] flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px]"
+              style={{
+                border: `1px solid ${alsoClearLocal ? 'var(--accent)' : 'var(--border-strong)'}`,
+                background: alsoClearLocal ? 'var(--accent)' : 'transparent',
+              }}
+            >
+              {alsoClearLocal && <IconCheck width={10} height={10} />}
+            </span>
+            <span className="flex-1">
+              同时清除这台设备上的数据（推荐，避免以后登录新账号时又上传回去）
+            </span>
+          </button>
+
+          {deleteError && (
+            <div
+              className="mb-3 rounded-lg px-3 py-2 text-[12px] leading-relaxed"
+              style={{
+                background: 'color-mix(in srgb, #dc2626 10%, transparent)',
+                border: '1px solid color-mix(in srgb, #dc2626 30%, transparent)',
+                color: '#b91c1c',
+              }}
+            >
+              {deleteError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button className="btn btn-ghost" onClick={() => setDeleteOpen(false)}>
+              取消
+            </button>
+            <button
+              className="btn"
+              disabled={
+                busy || deleteDraft.trim().toLowerCase() !== cloudUser.email.toLowerCase()
+              }
+              style={{
+                border: '1px solid #dc2626',
+                background: '#dc2626',
+                color: '#ffffff',
+                opacity:
+                  busy || deleteDraft.trim().toLowerCase() !== cloudUser.email.toLowerCase()
+                    ? 0.5
+                    : 1,
+              }}
+              onClick={() => void confirmDelete()}
+            >
+              {busy ? '删除中…' : '永久删除'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
+  );
+}
+
+function UsageBar({ label, ratio, text }: { label: string; ratio: number; text: string }) {
+  const pct = Math.min(1, Math.max(0, Number.isFinite(ratio) ? ratio : 0));
+  const warn = pct >= 0.8;
+  return (
+    <div className="mb-2">
+      <div className="mb-1 flex items-center justify-between text-[11.5px]">
+        <span style={{ color: 'var(--muted)' }}>{label}</span>
+        <span style={{ color: warn ? '#dc2626' : 'var(--muted)' }}>{text}</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--border)' }}>
+        <div
+          style={{
+            width: `${pct * 100}%`,
+            height: '100%',
+            background: warn ? '#dc2626' : 'var(--accent)',
+            transition: 'width 200ms ease',
+          }}
+        />
+      </div>
+    </div>
   );
 }

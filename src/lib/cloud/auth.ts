@@ -83,6 +83,21 @@ export async function sendPasswordReset(email: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 删除当前登录的账号。
+ *
+ * 前端没有权限直接删 auth 用户，所以调用数据库里的 `delete_my_account()` 函数
+ * （见 `supabase/schema.sql`，它用 security definer + auth.uid() 保证只能删自己）。
+ * 项目与设置通过外键 `on delete cascade` 自动一起删除。
+ */
+export async function deleteMyAccount(): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('云端未配置');
+
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw new Error(error.message);
+}
+
 export function onAuthChange(callback: (user: CloudUser | null) => void): () => void {
   const supabase = getSupabase();
   if (!supabase) return () => {};

@@ -1,4 +1,5 @@
 import type { GraphEdge, Message, Project, Settings, TopicNode } from '../../types';
+import { cloneProject, type ClonedProject } from '../projectTransfer';
 import {
   deleteRemoteProjects,
   fetchProjectContents,
@@ -18,11 +19,23 @@ export interface WorkspaceSnapshot {
   settings: Settings;
 }
 
+/** 一次同步冲突：两边都改过同一个项目，落败的一方已被另存为副本 */
+export interface SyncConflictInfo {
+  projectId: string;
+  title: string;
+  /** 原项目最终保留的是哪一份 */
+  kept: 'cloud' | 'local';
+  copyProjectId: string;
+  copyTitle: string;
+  at: number;
+}
+
 export interface MergeOutcome {
   snapshot: WorkspaceSnapshot;
   pulledCount: number;
   pushedCount: number;
   warnings: string[];
+  conflicts: SyncConflictInfo[];
 }
 
 export interface PushOutcome {
@@ -30,6 +43,16 @@ export interface PushOutcome {
   warnings: string[];
   /** 推送成功后云端返回的版本信息，需要写回本地项目 */
   updated: { id: string; revision: number; updatedAt: number }[];
+  conflicts: SyncConflictInfo[];
+  /** 冲突时为「另一份」新建的本地副本，需要追加进本地数据 */
+  cloned: ClonedProject[];
+}
+
+/** 给冲突副本起一个一眼能看懂的标题后缀 */
+function conflictStamp(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** 记录每个项目「上次同步时云端的版本号」，用于发现冲突 */
@@ -76,11 +99,18 @@ function hasLocalChanges(project: Project): boolean {
   return project.updatedAt > (project.cloudUpdatedAt ?? 0);
 }
 
+interface PushOneResult {
+  revision: number;
+  updatedAt: number;
+  conflict?: SyncConflictInfo;
+  clone?: ClonedProject;
+}
+
 async function pushOne(
   project: Project,
   local: WorkspaceSnapshot,
   warnings: string[],
-): Promise<{ revision: number; updatedAt: number } | null> {
+): Promise<PushOneResult | null> {
   const content = contentOf(local, project);
   const first = await pushProject(project, content, knownRevisions.get(project.id));
 
@@ -90,11 +120,39 @@ async function pushOne(
   }
 
   if (first.status === 'conflict') {
+    // 别的设备也改过 → 本机版本照常保存，另一份另存为本地副本，绝不静默丢弃
+    const remoteProject = projectFromRemote(first.remote);
+    const copyTitle = `${project.title} · 冲突副本 ${conflictStamp()}`;
+    const clone = cloneProject(
+      {
+        projects: [remoteProject],
+        nodes: first.remote.content.nodes,
+        edges: first.remote.content.edges,
+        messages: first.remote.content.messages,
+      },
+      remoteProject.id,
+      { title: copyTitle },
+    );
+
     const retry = await pushProject(project, content, first.remote.revision);
     if (retry.status === 'created' || retry.status === 'updated') {
       knownRevisions.set(project.id, retry.revision);
-      warnings.push(`「${project.title}」在别处也被修改过，已按本地版本保存。`);
-      return { revision: retry.revision, updatedAt: retry.updatedAt };
+      warnings.push(
+        `「${project.title}」在另一台设备上也被修改过。本机版本已保留，另一份已另存为「${copyTitle}」。`,
+      );
+      return {
+        revision: retry.revision,
+        updatedAt: retry.updatedAt,
+        conflict: {
+          projectId: project.id,
+          title: project.title,
+          kept: 'local',
+          copyProjectId: clone?.project.id ?? '',
+          copyTitle,
+          at: Date.now(),
+        },
+        clone: clone ?? undefined,
+      };
     }
     warnings.push(`「${project.title}」同步失败，稍后会自动重试。`);
     return null;
@@ -115,7 +173,7 @@ async function pushOne(
 export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> {
   const metas = await pullProjectMetas();
   if (!metas) {
-    return { snapshot: local, pulledCount: 0, pushedCount: 0, warnings: [] };
+    return { snapshot: local, pulledCount: 0, pushedCount: 0, warnings: [], conflicts: [] };
   }
   const remoteSettings = await pullSettings();
 
@@ -140,6 +198,8 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
   const messages: Message[] = [];
   const toPush: Project[] = [];
   const warnings: string[] = [];
+  const conflicts: SyncConflictInfo[] = [];
+  const conflictIds: string[] = [];
   let pulledCount = 0;
 
   for (const meta of metas) {
@@ -149,6 +209,10 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
 
     if (content) {
       // 云端变过 → 采用云端版本
+      if (localProject && hasLocalChanges(localProject)) {
+        // 两边都改过 → 冲突。云端版本留在原项目，本机版本稍后另存为副本
+        conflictIds.push(localProject.id);
+      }
       const remote: RemoteProject = { ...meta, content };
       projects.push({
         ...projectFromRemote(remote),
@@ -181,6 +245,27 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
     toPush.push(localProject);
   }
 
+  // 冲突保底：把本机版本另存为副本，绝不静默丢弃
+  for (const conflictId of conflictIds) {
+    const source = localById.get(conflictId);
+    if (!source) continue;
+    const copyTitle = `${source.title} · 冲突副本 ${conflictStamp()}`;
+    const clone = cloneProject(local, conflictId, { title: copyTitle });
+    if (!clone) continue;
+    projects.push(clone.project);
+    nodes.push(...clone.nodes);
+    edges.push(...clone.edges);
+    messages.push(...clone.messages);
+    conflicts.push({
+      projectId: conflictId,
+      title: source.title,
+      kept: 'cloud',
+      copyProjectId: clone.project.id,
+      copyTitle,
+      at: Date.now(),
+    });
+  }
+
   let settings = local.settings;
   if (remoteSettings) {
     settings = remoteSettings;
@@ -196,9 +281,15 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
   const pushedInfo = new Map<string, { revision: number; updatedAt: number }>();
   for (const project of toPush) {
     const info = await pushOne(project, local, warnings);
-    if (info) {
-      pushedInfo.set(project.id, info);
-      pushedCount += 1;
+    if (!info) continue;
+    pushedInfo.set(project.id, info);
+    pushedCount += 1;
+    if (info.conflict) conflicts.push(info.conflict);
+    if (info.clone) {
+      projects.push(info.clone.project);
+      nodes.push(...info.clone.nodes);
+      edges.push(...info.clone.edges);
+      messages.push(...info.clone.messages);
     }
   }
 
@@ -218,6 +309,7 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
     pulledCount,
     pushedCount,
     warnings,
+    conflicts,
   };
 }
 
@@ -225,14 +317,19 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
 export async function pushDirty(local: WorkspaceSnapshot): Promise<PushOutcome> {
   const warnings: string[] = [];
   const updated: PushOutcome['updated'] = [];
+  const conflicts: SyncConflictInfo[] = [];
+  const cloned: ClonedProject[] = [];
 
   for (const project of local.projects) {
     if (!hasLocalChanges(project)) continue;
     const info = await pushOne(project, local, warnings);
-    if (info) updated.push({ id: project.id, ...info });
+    if (!info) continue;
+    updated.push({ id: project.id, revision: info.revision, updatedAt: info.updatedAt });
+    if (info.conflict) conflicts.push(info.conflict);
+    if (info.clone) cloned.push(info.clone);
   }
 
-  return { pushed: updated.length, warnings, updated };
+  return { pushed: updated.length, warnings, updated, conflicts, cloned };
 }
 
 export async function removeRemoteProject(projectId: string): Promise<void> {

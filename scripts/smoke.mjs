@@ -355,6 +355,44 @@ try {
   );
   check('复制：拒绝复制到同一项目', transferMod.copySubtreeToProject(baseSlice, 'B', 'p1') === null);
 
+  // --- 整项目克隆（同步冲突时「保留另一份」的保底机制）---
+  const clone = transferMod.cloneProject(baseSlice, 'p1', { title: '原项目 · 冲突副本' });
+  check('克隆：生成新的项目 id', clone.project.id !== 'p1');
+  check('克隆：标题可覆盖', clone.project.title === '原项目 · 冲突副本');
+  check(
+    '克隆：节点全部复制且 id 全新',
+    clone.nodes.length === 5 && !clone.nodes.some((n) => ['A', 'B', 'C', 'D', 'F'].includes(n.id)),
+  );
+  check(
+    '克隆：父子关系在副本内重建',
+    clone.nodes.every((n) => n.parentId === null || clone.nodes.some((m) => m.id === n.parentId)),
+  );
+  check('克隆：连线全部复制', clone.edges.length === 4);
+  check('克隆：对话全部复制', clone.messages.length === 3);
+  check('克隆：待解决问题随副本复制', clone.project.openQuestions.length === 1);
+  check('克隆：不修改原项目', baseSlice.projects.length === 2 && baseSlice.nodes.length === 5);
+  check('克隆：不存在的项目返回 null', transferMod.cloneProject(baseSlice, 'nope') === null);
+
+  // --- 用量估算 ---
+  const usageMod = await server.ssrLoadModule('/src/lib/usage.ts');
+  const usageProjects = [
+    { id: 'p1', title: 'A' },
+    { id: 'p2', title: 'B' },
+  ];
+  const p1Bytes = usageMod.estimateProjectBytes('p1', baseSlice.nodes, baseSlice.edges, baseSlice.messages);
+  const p2Bytes = usageMod.estimateProjectBytes('p2', baseSlice.nodes, baseSlice.edges, baseSlice.messages);
+  const usage = usageMod.summarizeUsage(usageProjects, baseSlice.nodes, baseSlice.edges, baseSlice.messages);
+  check('用量：项目数正确', usage.projects === 2);
+  check('用量：有内容的项目体积更大', p1Bytes > p2Bytes);
+  check('用量：总量等于各项目之和', usage.totalBytes === p1Bytes + p2Bytes);
+  check('用量：能找出最大的项目', usage.largest.id === 'p1');
+  check(
+    '用量：字节格式化',
+    usageMod.formatBytes(0) === '0 B' &&
+      usageMod.formatBytes(2048) === '2.0 KB' &&
+      usageMod.formatBytes(2 * 1024 * 1024) === '2.00 MB',
+  );
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

@@ -129,7 +129,10 @@ export function PrivacyPanel() {
         <Bullet ok><strong>随时导出</strong>：顶部下载图标 → 导出全部项目，得到完整 JSON 文件</Bullet>
         <Bullet ok><strong>随时清除本机数据</strong>：设置 → 危险操作</Bullet>
         <Bullet ok><strong>随时退出登录</strong>：账号面板 → 退出登录（本机数据保留）</Bullet>
-        <Bullet ok><strong>删除账号</strong>：联系站点维护者，会连同云端数据一并删除</Bullet>
+        <Bullet ok>
+          <strong>随时删除账号</strong>：账号面板 → 删除我的账号。会连同云端保存的全部项目一并删除，
+          无需联系维护者
+        </Bullet>
       </Section>
 
       <Section index={7} title="开源透明">

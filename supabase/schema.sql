@@ -153,3 +153,27 @@ create policy "settings_update_own" on public.user_settings
 drop policy if exists "settings_delete_own" on public.user_settings;
 create policy "settings_delete_own" on public.user_settings
   for delete using (auth.uid() = user_id);
+
+-- ---------- 8. 删除账号（自助注销） ----------
+-- 前端只有公开密钥，没有权限直接删 auth 用户，所以提供一个数据库函数：
+--   security definer 让它以创建者身份执行；
+--   函数内部只允许删「当前登录用户自己」（auth.uid()），因此不会误删别人。
+-- projects / user_settings 通过外键 on delete cascade 自动一起删除。
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception '未登录，无法删除账号。';
+  end if;
+
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- 只允许已登录用户调用：先撤掉默认的 PUBLIC 权限，再单独授权给 authenticated
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;

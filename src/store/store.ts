@@ -32,6 +32,7 @@ import { isSmallScreen } from '../lib/device';
 import {
   getCurrentUser,
   onAuthChange,
+  deleteMyAccount,
   sendPasswordReset,
   signInWithGitHub,
   signInWithPassword,
@@ -46,6 +47,7 @@ import {
   removeRemoteProject,
   resetCloudEngine,
   syncSettingsToCloud,
+  type SyncConflictInfo,
   type WorkspaceSnapshot,
 } from '../lib/cloud/engine';
 import {
@@ -83,6 +85,8 @@ interface UIState {
   cloudUser: CloudUser | null;
   cloudStatus: 'disabled' | 'signed-out' | 'syncing' | 'synced' | 'error';
   cloudNotice: string | null;
+  /** 检测到的同步冲突（落败的一方已另存为副本） */
+  syncConflicts: SyncConflictInfo[];
   authOpen: boolean;
   privacyOpen: boolean;
   apiKeyGuideOpen: boolean;
@@ -183,7 +187,9 @@ interface Actions {
   cloudSignOut: () => Promise<void>;
   cloudSyncNow: () => Promise<void>;
   cloudSendReset: (email: string) => Promise<void>;
+  cloudDeleteAccount: (alsoClearLocal: boolean) => Promise<void>;
   setCloudNotice: (notice: string | null) => void;
+  dismissConflicts: () => void;
   setSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -266,11 +272,28 @@ function localSnapshot(): WorkspaceSnapshot {
   };
 }
 
+/** 合并冲突记录（按「原项目 + 副本」去重，只保留最近 20 条） */
+function mergeConflicts(
+  existing: SyncConflictInfo[],
+  incoming: SyncConflictInfo[],
+): SyncConflictInfo[] {
+  if (incoming.length === 0) return existing;
+  const seen = new Set(existing.map((c) => `${c.projectId}:${c.copyProjectId}`));
+  const merged = [...existing];
+  for (const c of incoming) {
+    const key = `${c.projectId}:${c.copyProjectId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(c);
+  }
+  return merged.slice(-20);
+}
+
 async function performFullSync(): Promise<void> {
   useStore.setState({ cloudStatus: 'syncing', cloudNotice: null });
   try {
     const outcome = await fullSync(localSnapshot());
-    useStore.setState({
+    useStore.setState((s) => ({
       projects: outcome.snapshot.projects,
       nodes: outcome.snapshot.nodes,
       edges: outcome.snapshot.edges,
@@ -278,7 +301,8 @@ async function performFullSync(): Promise<void> {
       settings: outcome.snapshot.settings,
       cloudStatus: 'synced',
       cloudNotice: outcome.warnings.length > 0 ? outcome.warnings.join(' ') : null,
-    });
+      syncConflicts: mergeConflicts(s.syncConflicts, outcome.conflicts),
+    }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     useStore.setState({
@@ -314,6 +338,15 @@ async function flushPush(): Promise<void> {
       await syncSettingsToCloud(snapshot.settings);
       settingsDirty = false;
     }
+    // 冲突时为「另一份」新建的副本，追加进本地（下次推送会自动上传）
+    if (result.cloned.length > 0) {
+      useStore.setState((s) => ({
+        projects: [...s.projects, ...result.cloned.map((c) => c.project)],
+        nodes: [...s.nodes, ...result.cloned.flatMap((c) => c.nodes)],
+        edges: [...s.edges, ...result.cloned.flatMap((c) => c.edges)],
+        messages: [...s.messages, ...result.cloned.flatMap((c) => c.messages)],
+      }));
+    }
     // 把云端返回的版本标记写回本地，避免下次重复推送
     if (result.updated.length > 0) {
       const marks = new Map(result.updated.map((u) => [u.id, u]));
@@ -326,10 +359,11 @@ async function flushPush(): Promise<void> {
         }),
       }));
     }
-    useStore.setState({
+    useStore.setState((s) => ({
       cloudStatus: 'synced',
       cloudNotice: result.warnings.length > 0 ? result.warnings.join(' ') : null,
-    });
+      syncConflicts: mergeConflicts(s.syncConflicts, result.conflicts),
+    }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     useStore.setState({
@@ -375,6 +409,7 @@ export const useStore = create<StoreState>((set, get) => ({
   cloudUser: null,
   cloudStatus: cloudConfigured ? 'signed-out' : 'disabled',
   cloudNotice: null,
+  syncConflicts: [],
   authOpen: false,
   privacyOpen: false,
   apiKeyGuideOpen: false,
@@ -1264,6 +1299,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   clearErrors: () => set({ recentErrors: [] }),
   setCloudNotice: (notice) => set({ cloudNotice: notice }),
+  dismissConflicts: () => set({ syncConflicts: [] }),
   dismissGuestBanner: () => {
     saveUiPrefs({ ...loadUiPrefs(), guestBannerDismissed: true });
     set({ guestBannerDismissed: true });
@@ -1372,6 +1408,24 @@ export const useStore = create<StoreState>((set, get) => ({
 
   cloudSendReset: async (email) => {
     await sendPasswordReset(email);
+  },
+
+  /** 删除当前账号（云端 + 可选的本机数据） */
+  cloudDeleteAccount: async (alsoClearLocal) => {
+    await deleteMyAccount();
+    try {
+      await signOutCloud();
+    } catch {
+      /* 账号已经删除，退出登录失败也无所谓 */
+    }
+    resetCloudEngine(null);
+    set({
+      cloudUser: null,
+      cloudStatus: 'signed-out',
+      cloudNotice: null,
+      syncConflicts: [],
+    });
+    if (alsoClearLocal) get().resetToSample();
   },
 
   locateNode: (id) => {

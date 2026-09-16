@@ -29,8 +29,8 @@ ThinkingSpace 是一个以 Topic 为基本认知单元、以 Branch 为思考扩
 
 ## 技术栈
 
-React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
-数据保存在浏览器 localStorage，当前无后端、无账号系统。
+React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supabase。
+数据保存在浏览器 localStorage；登录后同步到 Supabase，纯前端、无自建后端。
 
 ## 常用命令（可直接复制）
 
@@ -54,6 +54,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
 - `src/lib/ai/contextBuilder.ts` — Context Engine（利用树结构构建上下文）
 - `src/lib/layout.ts` — 自动布局
 - `src/lib/exportImport.ts` — 导出 / 导入
+- `src/lib/projectTransfer.ts` — 跨项目拆分 / 复制 / 整项目克隆（纯函数）
+- `src/lib/usage.ts` — 云端用量估算（上限需与 `supabase/schema.sql` 保持一致）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
 
@@ -77,11 +79,12 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
   - **定时保活**：`.github/workflows/keep-alive.yml` 每天访问一次数据库，避免免费项目 7 天不活动被暂停
   - **数据迁移**：唯一入口 `migrateOpenQuestions()`（在 `src/lib/storage.ts`），本地读取与云端拉取两条路径都会调用
 - **V0.5 移动端**：手机浏览器适配（抽屉侧栏 / 工具栏收纳 / 触屏常显 / 防 iOS 缩放）✅
-- **V0.6 公开测试加固**（进行中）
+- **V0.6 公开测试加固** ✅
   - V0.6.0 ✅ 每日自动备份（`backup.yml`，需配 `SUPABASE_DB_URL` Secret）/ 应用内反馈入口（带诊断信息）/
     容量保护（`schema.sql` 触发器：20 项目 / 20MB / 单项目 4MB）/ 手机侧栏长按菜单修复
   - V0.6.1 ✅ 卡片可拆分 / 复制到另一个项目（连同全部子分支、对话与相关待解决问题）
-  - 待办 ⏳ 同步冲突提示 / 自助删除账号 / 用量提示
+  - V0.6.2 ✅ 同步冲突保底（另存副本，绝不静默丢数据）/ 自助删除账号
+    （`schema.sql` 的 `delete_my_account()`）/ 云端用量提示
 
 ## 安全规则
 
