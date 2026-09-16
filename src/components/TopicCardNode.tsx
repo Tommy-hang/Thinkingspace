@@ -71,7 +71,7 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
         )}
 
         <button
-          className="ml-auto shrink-0 rounded px-1 opacity-0 transition-opacity group-hover:opacity-100"
+          className="ts-hover-only ml-auto shrink-0 rounded px-1 opacity-0 transition-opacity group-hover:opacity-100"
           style={{ color: 'var(--faint)' }}
           title="更多操作"
           onClick={(e) => {
@@ -143,7 +143,7 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
 
         {!topic.collapsed && branchCount > 0 && (
           <button
-            className="ml-auto inline-flex items-center gap-0.5 rounded px-1 opacity-0 transition-opacity group-hover:opacity-100"
+            className="ts-hover-only ml-auto inline-flex items-center gap-0.5 rounded px-1 opacity-0 transition-opacity group-hover:opacity-100"
             style={{ color: 'var(--faint)' }}
             title="折叠子主题"
             onClick={(e) => {
@@ -158,8 +158,8 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
         <span
           className={
             topic.collapsed
-              ? 'opacity-0 transition-opacity group-hover:opacity-100'
-              : 'ml-auto opacity-0 transition-opacity group-hover:opacity-100'
+              ? 'ts-hover-only opacity-0 transition-opacity group-hover:opacity-100'
+              : 'ts-hover-only ml-auto opacity-0 transition-opacity group-hover:opacity-100'
           }
         >
           打开 →

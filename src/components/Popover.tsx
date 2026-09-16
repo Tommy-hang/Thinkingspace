@@ -6,6 +6,7 @@ interface PopoverProps {
   align?: 'left' | 'right';
   placement?: 'bottom' | 'top';
   width?: number;
+  className?: string;
 }
 
 export function Popover({
@@ -14,6 +15,7 @@ export function Popover({
   align = 'left',
   placement = 'bottom',
   width = 220,
+  className = '',
 }: PopoverProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -35,7 +37,7 @@ export function Popover({
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={`relative ${className}`} ref={ref}>
       <div onClick={() => setOpen((o) => !o)}>{button}</div>
       {open && (
         <div
@@ -59,22 +61,27 @@ export function MenuItem({
   children,
   onClick,
   danger,
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors"
-      style={{ color: danger ? '#dc2626' : 'var(--text)' }}
+      disabled={disabled}
+      style={{ color: danger ? '#dc2626' : 'var(--text)', opacity: disabled ? 0.4 : 1 }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'color-mix(in srgb, var(--text) 7%, transparent)';
+        if (!disabled) {
+          e.currentTarget.style.background = 'color-mix(in srgb, var(--text) 7%, transparent)';
+        }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent';
       }}
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
     >
       {children}
     </button>

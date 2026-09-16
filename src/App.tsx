@@ -25,10 +25,23 @@ export default function App() {
   const undo = useStore((s) => s.undo);
   const redo = useStore((s) => s.redo);
   const initCloud = useStore((s) => s.initCloud);
+  const setSidebarOpen = useStore((s) => s.setSidebarOpen);
 
   useEffect(() => {
     void initCloud();
   }, [initCloud]);
+
+  // 屏幕变窄时自动收起左侧栏，避免一打开就盖住地图
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => {
+      if (mq.matches) setSidebarOpen(false);
+    };
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [setSidebarOpen]);
 
   const [origin, setOrigin] = useState<{ id: string; rect: DOMRect | null } | null>(null);
 
@@ -111,7 +124,7 @@ export default function App() {
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar />
       <GuestBanner />
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {sidebarOpen && <Sidebar />}
         <main className="relative min-h-0 flex-1">
           <ReactFlowProvider>

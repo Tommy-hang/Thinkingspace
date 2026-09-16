@@ -82,6 +82,9 @@ body {
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 * {
@@ -471,4 +474,51 @@ body {
 
 .hljs-strong {
   font-weight: 600;
+}
+
+/* ============ 移动端适配（宽度 < 768px） ============ */
+
+@media (max-width: 767px) {
+  /*
+   * iOS Safari 在聚焦「字号小于 16px」的输入框时会自动放大整个页面，
+   * 而且不会自动缩回来。把移动端输入框字号固定为 16px 可以避免。
+   */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* 触屏上需要更大的点击面积 */
+  .btn {
+    min-height: 36px;
+  }
+
+  /* 顶部细提示条里的按钮不需要那么高 */
+  .ts-banner .btn {
+    min-height: 26px;
+  }
+
+  /* 移动端不再依赖 hover，卡片上的次级按钮需要常显 */
+  .ts-hover-only {
+    opacity: 1 !important;
+  }
+
+  /* 地图上的悬停预览在触屏上没有意义 */
+  .ts-hover-preview {
+    display: none !important;
+  }
+
+  /* 消息气泡占满宽度，留出更多阅读空间 */
+  .ts-markdown-host,
+  .ts-prose {
+    max-width: 100% !important;
+  }
+}
+
+/* 适配带「刘海」的手机 */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .ts-safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
 }

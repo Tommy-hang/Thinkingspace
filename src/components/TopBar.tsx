@@ -11,6 +11,7 @@ import {
   IconLayout,
   IconMap,
   IconMoon,
+  IconMore,
   IconPlus,
   IconRedo,
   IconSearch,
@@ -92,7 +93,7 @@ export function TopBar() {
         <IconBranch width={17} height={17} />
       </button>
 
-      <div className="mr-1 flex items-center gap-2 pl-1">
+      <div className="mr-1 hidden items-center gap-2 pl-1 md:flex">
         <span className="text-[15px] font-semibold tracking-tight">ThinkingSpace</span>
         <span className="chip hidden sm:inline-flex" title="当前前端版本，用于确认是否已刷新到最新代码">
           {APP_VERSION}
@@ -103,7 +104,7 @@ export function TopBar() {
         <Popover
           width={280}
           button={
-            <button className="btn btn-outline max-w-[220px]">
+            <button className="btn btn-outline max-w-[130px] md:max-w-[220px]">
               <IconFolder width={14} height={14} />
               <span className="truncate">{project.title}</span>
             </button>
@@ -179,7 +180,7 @@ export function TopBar() {
 
       <div className="ml-auto flex items-center gap-1">
         <button
-          className="btn btn-ghost px-2"
+          className="btn btn-ghost hidden px-2 md:inline-flex"
           onClick={undo}
           disabled={!canUndo}
           title="撤销 (Ctrl+Z)"
@@ -188,7 +189,7 @@ export function TopBar() {
           <IconUndo />
         </button>
         <button
-          className="btn btn-ghost px-2"
+          className="btn btn-ghost hidden px-2 md:inline-flex"
           onClick={redo}
           disabled={!canRedo}
           title="重做 (Ctrl+Shift+Z)"
@@ -197,30 +198,34 @@ export function TopBar() {
           <IconRedo />
         </button>
 
-        <button className="btn btn-ghost" onClick={() => setSearchOpen(true)} title="搜索 (Ctrl+K)">
+        <button
+          className="btn btn-ghost px-2 md:px-3"
+          onClick={() => setSearchOpen(true)}
+          title="搜索 (Ctrl+K)"
+        >
           <IconSearch />
           <span className="hidden md:inline">搜索</span>
         </button>
         <button
-          className="btn btn-ghost"
+          className="btn btn-ghost hidden md:inline-flex"
           onClick={() => setKnowledgeOpen(true)}
           title="知识地图（由全部卡片的「当前理解」生成）"
           disabled={!project}
         >
           <IconMap />
-          <span className="hidden md:inline">知识地图</span>
+          <span className="hidden lg:inline">知识地图</span>
         </button>
         <button
-          className="btn btn-ghost"
+          className="btn btn-ghost hidden md:inline-flex"
           onClick={() => applyAutoLayout()}
           title="整理地图布局"
           disabled={!project}
         >
           <IconLayout />
-          <span className="hidden md:inline">整理布局</span>
+          <span className="hidden lg:inline">整理布局</span>
         </button>
         <button
-          className="btn btn-ghost"
+          className="btn btn-ghost px-2 md:px-3"
           onClick={() => createRootNode()}
           title="新建主题"
           disabled={!project}
@@ -230,6 +235,7 @@ export function TopBar() {
         </button>
 
         <Popover
+          className="hidden md:block"
           align="right"
           width={220}
           button={
@@ -269,7 +275,7 @@ export function TopBar() {
         </Popover>
 
         <button
-          className="btn btn-ghost"
+          className="btn btn-ghost hidden md:inline-flex"
           title="切换深浅色"
           onClick={() =>
             updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })
@@ -278,7 +284,7 @@ export function TopBar() {
           {settings.theme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>
         <button
-          className="btn btn-ghost"
+          className="btn btn-ghost px-2 md:px-3"
           onClick={() => setAuthOpen(true)}
           title={
             cloudUser
@@ -318,12 +324,148 @@ export function TopBar() {
           </span>
         </button>
 
-        <button className="btn btn-ghost" onClick={() => setHelpOpen(true)} title="使用说明">
+        <button
+          className="btn btn-ghost hidden md:inline-flex"
+          onClick={() => setHelpOpen(true)}
+          title="使用说明"
+        >
           <IconHelp />
         </button>
-        <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)} title="设置">
+        <button
+          className="btn btn-ghost hidden md:inline-flex"
+          onClick={() => setSettingsOpen(true)}
+          title="设置"
+        >
           <IconSettings />
         </button>
+
+        {/* 移动端：更多 */}
+        <Popover
+          className="md:hidden"
+          align="right"
+          width={220}
+          button={
+            <button className="btn btn-ghost px-2" title="更多">
+              <IconMore />
+            </button>
+          }
+        >
+          {(close) => (
+            <div>
+              <MenuItem
+                disabled={!project}
+                onClick={() => {
+                  close();
+                  setKnowledgeOpen(true);
+                }}
+              >
+                <IconMap width={14} height={14} />
+                <span className="flex-1">知识地图</span>
+              </MenuItem>
+              <MenuItem
+                disabled={!project}
+                onClick={() => {
+                  close();
+                  applyAutoLayout();
+                }}
+              >
+                <IconLayout width={14} height={14} />
+                <span className="flex-1">整理布局</span>
+              </MenuItem>
+
+              <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
+
+              <MenuItem
+                disabled={!canUndo}
+                onClick={() => {
+                  close();
+                  undo();
+                }}
+              >
+                <IconUndo width={14} height={14} />
+                <span className="flex-1">撤销</span>
+              </MenuItem>
+              <MenuItem
+                disabled={!canRedo}
+                onClick={() => {
+                  close();
+                  redo();
+                }}
+              >
+                <IconRedo width={14} height={14} />
+                <span className="flex-1">重做</span>
+              </MenuItem>
+
+              <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
+
+              <MenuItem
+                onClick={() => {
+                  close();
+                  handleExport(false);
+                }}
+              >
+                <IconDownload width={14} height={14} />
+                <span className="flex-1">导出当前项目</span>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  close();
+                  handleExport(true);
+                }}
+              >
+                <IconDownload width={14} height={14} />
+                <span className="flex-1">导出全部项目</span>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  close();
+                  fileRef.current?.click();
+                }}
+              >
+                <IconUpload width={14} height={14} />
+                <span className="flex-1">导入 .json 文件</span>
+              </MenuItem>
+
+              <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
+
+              <MenuItem
+                onClick={() => {
+                  close();
+                  updateSettings({
+                    theme: settings.theme === 'dark' ? 'light' : 'dark',
+                  });
+                }}
+              >
+                {settings.theme === 'dark' ? (
+                  <IconSun width={14} height={14} />
+                ) : (
+                  <IconMoon width={14} height={14} />
+                )}
+                <span className="flex-1">
+                  {settings.theme === 'dark' ? '切换浅色' : '切换深色'}
+                </span>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  close();
+                  setHelpOpen(true);
+                }}
+              >
+                <IconHelp width={14} height={14} />
+                <span className="flex-1">使用说明</span>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  close();
+                  setSettingsOpen(true);
+                }}
+              >
+                <IconSettings width={14} height={14} />
+                <span className="flex-1">设置</span>
+              </MenuItem>
+            </div>
+          )}
+        </Popover>
       </div>
 
       <input

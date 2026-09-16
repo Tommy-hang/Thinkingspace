@@ -27,6 +27,7 @@ import { intentToEdgeType } from '../lib/branchIntent';
 import { generateDigest, generateInsight, generateSuggestions } from '../lib/reasoning';
 import { generateKnowledgeMap, type KnowledgeSourceItem } from '../lib/knowledgeMap';
 import { cloudConfigured } from '../lib/cloud/client';
+import { isSmallScreen } from '../lib/device';
 import {
   getCurrentUser,
   onAuthChange,
@@ -364,7 +365,8 @@ export const useStore = create<StoreState>((set, get) => ({
   guestBannerDismissed: loadUiPrefs().guestBannerDismissed ?? false,
   searchOpen: false,
   settingsOpen: false,
-  sidebarOpen: true,
+  // 手机上左侧栏默认收起（避免一打开就盖住地图）
+  sidebarOpen: !isSmallScreen(),
   statusFilter: 'all',
   streamingNodeId: null,
   searchingNodeId: null,

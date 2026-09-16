@@ -18,6 +18,7 @@ import {
   IconEdit,
   IconGlobe,
   IconLink,
+  IconMore,
   IconPin,
   IconPlus,
   IconRefresh,
@@ -590,7 +591,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </Popover>
 
             <button
-              className="btn btn-ghost px-2"
+              className="btn btn-ghost hidden px-2 md:inline-flex"
               title={node.pinned ? '取消收藏' : '收藏这个主题'}
               style={{ color: node.pinned ? 'var(--accent)' : 'var(--muted)' }}
               onClick={() => togglePin(nodeId)}
@@ -599,7 +600,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </button>
 
             <button
-              className="btn btn-ghost px-2"
+              className="btn btn-ghost hidden px-2 md:inline-flex"
               title="复制这个主题的链接"
               onClick={() => {
                 void copyText(buildNodeUrl(node.projectId, node.id)).then((ok) => {
@@ -612,7 +613,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
 
             {childNodes.length >= 2 && (
               <button
-                className="btn btn-outline"
+                className="btn btn-outline hidden md:inline-flex"
                 title="把子分支的探索综合成更高层的理解"
                 disabled={busy === 'insight'}
                 onClick={() => void handleMerge()}
@@ -640,7 +641,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </button>
 
             <button
-              className="btn btn-ghost px-2"
+              className="btn btn-ghost hidden px-2 md:inline-flex"
               title="把当前主题及其所有子分支导出为 Markdown"
               onClick={() => {
                 try {
@@ -657,7 +658,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             </button>
 
             <button
-              className="btn btn-ghost"
+              className="btn btn-ghost hidden md:inline-flex"
               title="删除当前主题及其所有分支"
               onClick={() => {
                 if (
@@ -672,10 +673,94 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
             >
               <IconTrash width={15} height={15} />
             </button>
+
+            {/* 移动端：把次要操作收进「更多」 */}
+            <Popover
+              className="md:hidden"
+              align="right"
+              width={210}
+              button={
+                <button className="btn btn-ghost px-2" title="更多">
+                  <IconMore width={16} height={16} />
+                </button>
+              }
+            >
+              {(closeMenu) => (
+                <div>
+                  <MenuItem
+                    onClick={() => {
+                      closeMenu();
+                      togglePin(nodeId);
+                    }}
+                  >
+                    <IconPin width={14} height={14} />
+                    <span className="flex-1">{node.pinned ? '取消收藏' : '收藏'}</span>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      closeMenu();
+                      void copyText(buildNodeUrl(node.projectId, node.id)).then((ok) => {
+                        if (!ok) alert('复制失败，请手动复制浏览器地址栏。');
+                      });
+                    }}
+                  >
+                    <IconLink width={14} height={14} />
+                    <span className="flex-1">复制链接</span>
+                  </MenuItem>
+                  {childNodes.length >= 2 && (
+                    <MenuItem
+                      onClick={() => {
+                        closeMenu();
+                        void handleMerge();
+                      }}
+                    >
+                      <IconSpark width={14} height={14} />
+                      <span className="flex-1">{node.insight ? '刷新综合理解' : '综合理解'}</span>
+                    </MenuItem>
+                  )}
+                  <MenuItem
+                    onClick={() => {
+                      closeMenu();
+                      try {
+                        downloadMarkdown(
+                          exportBranchMarkdown(nodes, messages, node.id),
+                          `${node.title}-分支`,
+                        );
+                      } catch (err) {
+                        alert(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+                      }
+                    }}
+                  >
+                    <IconDownload width={14} height={14} />
+                    <span className="flex-1">导出 Markdown</span>
+                  </MenuItem>
+
+                  <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />
+
+                  <MenuItem
+                    danger
+                    onClick={() => {
+                      closeMenu();
+                      if (
+                        confirm(
+                          `删除主题「${node.title}」？\n它下面的所有分支与对话也会一并删除，且无法恢复。`,
+                        )
+                      ) {
+                        deleteNode(nodeId);
+                        close();
+                      }
+                    }}
+                  >
+                    <IconTrash width={14} height={14} />
+                    <span className="flex-1">删除主题</span>
+                  </MenuItem>
+                </div>
+              )}
+            </Popover>
           </div>
         </div>
 
-        <div className="ts-scroll flex-1 overflow-y-auto px-5 py-6" ref={scrollRef}>
+        <div className="ts-scroll flex-1 overflow-y-auto px-3 py-4 md:px-5 md:py-6" ref={scrollRef}>
           <div className="mx-auto max-w-[820px]">
             {editingTitle ? (
               <input
@@ -1053,7 +1138,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
         </div>
 
         <div
-          className="shrink-0 px-5 py-4"
+          className="ts-safe-bottom shrink-0 px-3 py-3 md:px-5 md:py-4"
           style={{ borderTop: '1px solid var(--border)', background: 'var(--panel)' }}
         >
           <div className="mx-auto max-w-[820px]">
@@ -1126,9 +1211,12 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                 placement="top"
                 width={310}
                 button={
-                  <button className="btn btn-outline !px-2 !py-1 !text-[12px]">
-                    <span style={{ color: 'var(--muted)' }}>
-                      {provider?.displayName ?? '未配置'} · {provider?.model ?? '—'}
+                  <button className="btn btn-outline max-w-[190px] !px-2 !py-1 !text-[12px]">
+                    <span className="truncate" style={{ color: 'var(--muted)' }}>
+                      <span className="hidden md:inline">
+                        {provider?.displayName ?? '未配置'} ·{' '}
+                      </span>
+                      {provider?.model ?? '—'}
                     </span>
                     {provider && provider.kind !== 'mock' && !secrets[provider.id] ? (
                       <span style={{ color: '#dc2626' }}>未填 Key</span>

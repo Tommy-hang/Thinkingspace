@@ -64,7 +64,7 @@ export function SettingsPanel() {
 
         {adding && (
           <div className="panel mb-3 rounded-xl p-3">
-            <div className="mb-2 grid grid-cols-3 gap-2">
+            <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-3">
               <input
                 className="input"
                 placeholder="显示名称"
@@ -151,7 +151,7 @@ export function SettingsPanel() {
                     离线演示模式，无需 API Key，用于验证界面流程。
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <label className="col-span-1 text-[11px]" style={{ color: 'var(--faint)' }}>
                       Base URL
                       <input
@@ -168,7 +168,10 @@ export function SettingsPanel() {
                         onChange={(e) => updateProvider(p.id, { model: e.target.value })}
                       />
                     </label>
-                    <label className="col-span-2 text-[11px]" style={{ color: 'var(--faint)' }}>
+                    <label
+                      className="col-span-1 text-[11px] md:col-span-2"
+                      style={{ color: 'var(--faint)' }}
+                    >
                       API Key（仅存本机）
                       <input
                         className="input mt-1 !py-1.5"

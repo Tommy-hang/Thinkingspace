@@ -413,11 +413,11 @@ export function Onboarding() {
 
         {/* 底部导航 */}
         <div
-          className="flex shrink-0 items-center gap-2 px-5 py-3.5"
+          className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 md:px-5 md:py-3.5"
           style={{ borderTop: '1px solid var(--border)' }}
         >
           <button
-            className="btn btn-ghost"
+            className="btn btn-ghost !text-[12.5px] md:!text-sm"
             disabled={step === 0}
             style={{ opacity: step === 0 ? 0.35 : 1 }}
             onClick={() => setStep((s) => Math.max(0, s - 1))}
@@ -426,18 +426,27 @@ export function Onboarding() {
             上一步
           </button>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             {step < TOTAL - 1 ? (
-              <button className="btn btn-primary" onClick={() => setStep((s) => s + 1)}>
+              <button
+                className="btn btn-primary !text-[12.5px] md:!text-sm"
+                onClick={() => setStep((s) => s + 1)}
+              >
                 下一步
               </button>
             ) : (
               <>
-                <button className="btn btn-outline" onClick={finish}>
+                <button
+                  className="btn btn-outline !text-[12.5px] md:!text-sm"
+                  onClick={finish}
+                >
                   直接开始体验
                 </button>
                 {cloudStatus !== 'disabled' && (
-                  <button className="btn btn-primary" onClick={startWithGitHub}>
+                  <button
+                    className="btn btn-primary !text-[12.5px] md:!text-sm"
+                    onClick={startWithGitHub}
+                  >
                     <IconGitHub width={15} height={15} />
                     用 GitHub 登录
                   </button>

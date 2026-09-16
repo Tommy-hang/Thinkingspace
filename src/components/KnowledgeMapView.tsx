@@ -172,10 +172,10 @@ export function KnowledgeMapView() {
       >
         <IconMap width={17} height={17} />
         <span className="text-[14px] font-semibold">知识地图</span>
-        <span className="chip hidden sm:inline-flex">{project.title}</span>
+        <span className="chip hidden max-w-[160px] truncate lg:inline-flex">{project.title}</span>
 
         {map && !progress && (
-          <span className="hidden text-[11px] md:inline" style={{ color: 'var(--faint)' }}>
+          <span className="hidden text-[11px] lg:inline" style={{ color: 'var(--faint)' }}>
             {totalPoints} 个知识点 ·{' '}
             {new Date(map.generatedAt).toLocaleString('zh-CN', {
               month: 'numeric',
@@ -194,7 +194,7 @@ export function KnowledgeMapView() {
               onClick={handleExportPdf}
             >
               <IconDownload width={14} height={14} />
-              导出 PDF
+              <span className="hidden sm:inline">导出 PDF</span>
             </button>
           )}
           <button
@@ -203,7 +203,7 @@ export function KnowledgeMapView() {
             onClick={() => void buildKnowledgeMap()}
           >
             <IconRefresh width={14} height={14} />
-            {map ? '重新生成' : '生成'}
+            <span className="hidden sm:inline">{map ? '重新生成' : '生成'}</span>
           </button>
           <button className="btn btn-ghost px-2" onClick={() => setOpen(false)} title="关闭">
             <IconX width={16} height={16} />

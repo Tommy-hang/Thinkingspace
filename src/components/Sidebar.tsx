@@ -19,6 +19,7 @@ export function Sidebar() {
   const openNodeMenu = useStore((s) => s.openNodeMenu);
   const focusNodeAt = useStore((s) => s.focusNodeAt);
   const showAllHidden = useStore((s) => s.showAllHidden);
+  const setSidebarOpen = useStore((s) => s.setSidebarOpen);
   const unhideNode = useStore((s) => s.unhideNode);
 
   const project = projects.find((p) => p.id === activeProjectId) ?? null;
@@ -133,10 +134,21 @@ export function Sidebar() {
   };
 
   return (
-    <aside
-      className="ts-scroll flex w-[262px] shrink-0 flex-col overflow-y-auto"
-      style={{ background: 'var(--panel-2)', borderRight: '1px solid var(--border)' }}
-    >
+    <>
+      {/* 手机上：抽屉式，带遮罩 */}
+      <div
+        className="absolute inset-0 z-30 md:hidden"
+        style={{ background: 'rgba(9,9,11,0.4)' }}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <aside
+        className="ts-scroll absolute top-0 bottom-0 left-0 z-40 flex w-[286px] max-w-[85vw] shrink-0 flex-col overflow-y-auto md:static md:z-auto md:w-[262px] md:max-w-none"
+        style={{
+          background: 'var(--panel-2)',
+          borderRight: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
       {recentNodes.length > 0 && (
         <div className="px-3 pt-3.5 pb-1">
           <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: 'var(--faint)' }}>
@@ -283,7 +295,8 @@ export function Sidebar() {
       </div>
 
       <div className="px-1.5 pb-4">{renderTree(null, 0)}</div>
-    </aside>
+      </aside>
+    </>
   );
 }
 

@@ -13,6 +13,7 @@ import { TopicCardNode } from './TopicCardNode';
 import type { TopicFlowEdge, TopicFlowNode } from '../types';
 import { EmptyState } from './EmptyState';
 import { getAncestors, getDescendantIds, getVisibleNodes } from '../lib/tree';
+import { isTouchDevice } from '../lib/device';
 import { intentLabel } from '../lib/branchIntent';
 
 const nodeTypes = { topic: TopicCardNode };
@@ -188,7 +189,8 @@ export function MapView({ onOpenNode }: MapViewProps) {
 
   const handleNodeMouseEnter = useCallback(
     (_event: React.MouseEvent, node: { id: string }) => {
-      if (dragging.current) return;
+      // 触屏没有 hover，悬停预览会与「点击进入」冲突
+      if (dragging.current || isTouchDevice()) return;
       if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
       hoverTimer.current = window.setTimeout(() => {
         hoverTimer.current = null;
@@ -287,7 +289,7 @@ export function MapView({ onOpenNode }: MapViewProps) {
 
       {preview && previewNode && (
         <div
-          className="panel ts-fade-up pointer-events-none fixed z-30 w-[304px] rounded-xl p-3.5"
+          className="panel ts-fade-up ts-hover-preview pointer-events-none fixed z-30 w-[304px] rounded-xl p-3.5"
           style={{
             left: Math.max(12, Math.min(preview.x, window.innerWidth - 320)),
             top: Math.max(12, Math.min(preview.y, window.innerHeight - 240)),

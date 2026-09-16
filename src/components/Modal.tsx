@@ -23,18 +23,18 @@ export function Modal({ open, title, onClose, children, width = 520 }: ModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-6 pt-[10vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center p-2 pt-[3vh] md:p-6 md:pt-[10vh]"
       style={{ background: 'rgba(9,9,11,0.42)', backdropFilter: 'blur(3px)' }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="panel ts-fade-up flex max-h-[76vh] w-full flex-col overflow-hidden rounded-2xl"
+        className="panel ts-fade-up flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl md:max-h-[76vh]"
         style={{ maxWidth: width, boxShadow: 'var(--shadow-lg)' }}
       >
         <div
-          className="flex items-center justify-between px-5 py-3.5"
+          className="flex shrink-0 items-center justify-between px-4 py-3 md:px-5 md:py-3.5"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <h2 className="text-sm font-semibold tracking-wide">{title}</h2>
@@ -42,7 +42,7 @@ export function Modal({ open, title, onClose, children, width = 520 }: ModalProp
             <IconX />
           </button>
         </div>
-        <div className="ts-scroll overflow-y-auto px-5 py-4">{children}</div>
+        <div className="ts-scroll overflow-y-auto px-4 py-3.5 md:px-5 md:py-4">{children}</div>
       </div>
     </div>
   );
