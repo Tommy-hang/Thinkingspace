@@ -94,6 +94,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.4 ✅ 新手教学与使用说明同步新功能
   - V0.6.5 ✅ 顶栏窄屏优化（窄屏隐藏文字 + 悬停提示）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
   - V0.6.6 ✅ 宣传海报进产品：新手教学封面页（横屏/竖屏自适应）+ README 顶部海报
+  - V0.6.7 ✅ 使用说明加入 GitHub 仓库链接
 
 ## 安全规则
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
-import { IconInfo, IconKey, IconSpark } from './icons';
+import { IconGitHub, IconInfo, IconKey, IconSpark } from './icons';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -92,6 +92,16 @@ export function HelpPanel() {
           <IconInfo width={14} height={14} />
           反馈问题
         </button>
+        <a
+          className="btn btn-outline"
+          href="https://github.com/Tommy-hang/Thinkingspace"
+          target="_blank"
+          rel="noreferrer noopener"
+          title="在 GitHub 上查看全部源代码"
+        >
+          <IconGitHub width={14} height={14} />
+          GitHub 仓库
+        </a>
       </div>
 
       <Section title="地图（Map）">
@@ -287,6 +297,23 @@ export function HelpPanel() {
         </Row>
         <Row label="关闭弹层">
           <Key>Esc</Key>
+        </Row>
+      </Section>
+
+      <Section title="开源">
+        <Row label="源代码">
+          全部代码公开在 GitHub 上，可以自行审查，或请懂技术的朋友帮你看：
+          <a
+            href="https://github.com/Tommy-hang/Thinkingspace"
+            target="_blank"
+            rel="noreferrer noopener"
+            style={{ color: 'var(--accent)', wordBreak: 'break-all' }}
+          >
+            https://github.com/Tommy-hang/Thinkingspace
+          </a>
+        </Row>
+        <Row label="遇到问题">
+          欢迎在仓库的 Issues 里反馈，也可以直接用上面的「反馈问题」（会自动带上诊断信息）。
         </Row>
       </Section>
 

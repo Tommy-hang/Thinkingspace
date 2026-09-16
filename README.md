@@ -4,7 +4,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.6**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.7**
 
 支持桌面与手机浏览器。
 
@@ -415,6 +415,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.4** ✅ 新手教学与使用说明同步 V0.6.3 的新功能
   - **V0.6.5** ✅ 顶栏窄屏优化（自动隐藏文字、悬停显示说明）/ 修复 `\[..\]`、`\(..\)` 公式不渲染
   - **V0.6.6** ✅ 新手教学首页加入宣传海报（横屏 / 竖屏自适应）/ README 顶部海报
+  - **V0.6.7** ✅ 使用说明加入 GitHub 仓库链接
 
 ---
 
