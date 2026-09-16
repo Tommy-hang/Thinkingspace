@@ -11,6 +11,7 @@ import { HelpPanel } from './components/HelpPanel';
 import { AuthPanel } from './components/AuthPanel';
 import { GuestBanner } from './components/GuestBanner';
 import { PrivacyPanel } from './components/PrivacyPanel';
+import { Onboarding } from './components/Onboarding';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
 import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
@@ -139,6 +140,7 @@ export default function App() {
       <HelpPanel />
       <AuthPanel />
       <PrivacyPanel />
+      <Onboarding />
     </div>
   );
 }

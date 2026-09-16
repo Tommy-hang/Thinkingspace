@@ -76,6 +76,9 @@ try {
   check('地图容器', html.includes('react-flow'));
   check('侧边栏项目概述', html.includes('项目概述'));
   check('示例主题卡', html.includes('Transformer'));
+  check('新手指引：问题剖析', html.includes('局部问题污染主线'));
+  check('新手指引：线性对话缺陷', html.includes('关系被压扁成顺序'));
+  check('新手指引：可跳过', html.includes('跳过'));
 
   // --- Markdown + KaTeX 渲染管线 ---
   const mdMod = await server.ssrLoadModule('/src/components/Markdown.tsx');

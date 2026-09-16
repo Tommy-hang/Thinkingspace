@@ -20,6 +20,7 @@ export const UI_PREFS_KEY = 'thinkingspace.ui.v1';
 
 export interface UiPrefs {
   guestBannerDismissed?: boolean;
+  onboardingSeen?: boolean;
 }
 
 export function loadUiPrefs(): UiPrefs {

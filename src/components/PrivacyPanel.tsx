@@ -123,10 +123,6 @@ export function PrivacyPanel() {
           这是使用 AI 的必要步骤，这些服务商有各自的隐私政策。
         </p>
         <p>如果你开启了「联网搜索」，你的问题也会发送给你选择的搜索服务商。</p>
-        <p>
-          <strong style={{ color: 'var(--text)' }}>如果你不希望内容离开浏览器</strong>
-          ，可以使用「离线演示」模式——它不调用任何外部服务。
-        </p>
       </Section>
 
       <Section index={6} title="你的权利">

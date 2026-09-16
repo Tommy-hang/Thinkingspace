@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store/store';
 import { Modal } from './Modal';
+import { IconSpark } from './icons';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -47,15 +48,27 @@ function Key({ children }: { children: ReactNode }) {
 export function HelpPanel() {
   const open = useStore((s) => s.helpOpen);
   const setOpen = useStore((s) => s.setHelpOpen);
+  const setOnboardingOpen = useStore((s) => s.setOnboardingOpen);
 
   return (
     <Modal open={open} title="使用说明" onClose={() => setOpen(false)} width={720}>
-      <p className="mb-5 text-[12.5px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+      <p className="mb-3 text-[12.5px] leading-relaxed" style={{ color: 'var(--muted)' }}>
         ThinkingSpace 把 AI 对话从一条时间线，变成一个可以探索的思维空间。
         每个「主题」是一张卡片，卡片内部可以有多轮对话，卡片之间用分支连接。
         <br />
         它保存的不是「我和 AI 说过什么」，而是「我是怎样想到这里的」。
       </p>
+
+      <button
+        className="btn btn-outline mb-5"
+        onClick={() => {
+          setOpen(false);
+          setOnboardingOpen(true);
+        }}
+      >
+        <IconSpark width={14} height={14} />
+        重新观看新手指引（了解这个产品的想法）
+      </button>
 
       <Section title="地图（Map）">
         <Row label="平移 / 缩放">按住空白处拖动平移；滚轮缩放；右下角有缩放按钮。</Row>
