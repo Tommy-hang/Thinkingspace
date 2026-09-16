@@ -126,6 +126,7 @@ interface Actions {
   deleteChildren: (parentId: string) => void;
   hideNode: (id: string) => void;
   hideChildren: (id: string) => void;
+  unhideChildren: (id: string) => void;
   unhideNode: (id: string) => void;
   showAllHidden: () => void;
 
@@ -803,6 +804,15 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({
       nodes: s.nodes.map((n) =>
         n.parentId === id ? { ...n, hidden: true, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  unhideChildren: (id) => {
+    pushHistory(`unhideChildren:${id}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.parentId === id ? { ...n, hidden: false, updatedAt: Date.now() } : n,
       ),
     }));
   },

@@ -36,6 +36,7 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   const renameNode = useStore((s) => s.renameNode);
   const hideNode = useStore((s) => s.hideNode);
   const hideChildren = useStore((s) => s.hideChildren);
+  const unhideChildren = useStore((s) => s.unhideChildren);
   const unhideNode = useStore((s) => s.unhideNode);
   const deleteNode = useStore((s) => s.deleteNode);
   const createChildBranch = useStore((s) => s.createChildBranch);
@@ -47,7 +48,9 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   const node = nodes.find((n) => n.id === nodeMenuId);
-  const hasChildren = nodes.some((n) => n.parentId === nodeMenuId);
+  const childNodes = nodes.filter((n) => n.parentId === nodeMenuId);
+  const hasChildren = childNodes.length > 0;
+  const someChildHidden = childNodes.some((n) => n.hidden);
 
   useEffect(() => {
     if (!nodeMenuId) return;
@@ -276,17 +279,28 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
             </MenuItem>
           )}
 
-          {hasChildren && (
-            <MenuItem
-              onClick={() => {
-                hideChildren(node.id);
-                close();
-              }}
-            >
-              <IconEyeOff width={14} height={14} />
-              <span className="flex-1">隐藏子分支</span>
-            </MenuItem>
-          )}
+          {hasChildren &&
+            (someChildHidden ? (
+              <MenuItem
+                onClick={() => {
+                  unhideChildren(node.id);
+                  close();
+                }}
+              >
+                <IconEye width={14} height={14} />
+                <span className="flex-1">显示子分支</span>
+              </MenuItem>
+            ) : (
+              <MenuItem
+                onClick={() => {
+                  hideChildren(node.id);
+                  close();
+                }}
+              >
+                <IconEyeOff width={14} height={14} />
+                <span className="flex-1">隐藏子分支</span>
+              </MenuItem>
+            ))}
 
           {node.hidden ? (
             <MenuItem
