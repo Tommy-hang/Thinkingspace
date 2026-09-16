@@ -393,6 +393,109 @@ try {
       usageMod.formatBytes(2 * 1024 * 1024) === '2.00 MB',
   );
 
+  // --- 上下文透镜（V0.6.3）---
+  const cbMod = await server.ssrLoadModule('/src/lib/ai/contextBuilder.ts');
+  const cb = cbMod.buildContext({
+    project: { id: 'p1', title: '项目', summary: '项目概述', createdAt: 0, updatedAt: 0 },
+    nodes: [
+      { ...t('root', null), title: '根主题', summary: '根概述' },
+      { ...t('child', 'root'), title: '子主题', anchor: { sourceNodeId: 'root', anchorText: '被选中的那句话' } },
+      { ...t('other', null), title: '无关主题' },
+    ],
+    messages: [{ id: 'm1', nodeId: 'child', role: 'user', content: '问题', createdAt: 0 }],
+    nodeId: 'child',
+    question: '新问题',
+    settings: {
+      includeProjectSummary: true,
+      includeAncestorSummaries: true,
+      ancestorDepth: 6,
+      maxAncestorChars: 240,
+    },
+  });
+  check('透镜：返回消息与清单', Array.isArray(cb.messages) && Array.isArray(cb.manifest.parts));
+  check('透镜：包含项目目标', cb.manifest.parts.some((p) => p.kind === 'project'));
+  check(
+    '透镜：包含上游主题',
+    cb.manifest.parts.some((p) => p.kind === 'ancestor' && (p.detail ?? '').includes('根主题')),
+  );
+  check('透镜：包含分支锚点', cb.manifest.parts.some((p) => p.kind === 'anchor'));
+  check('透镜：包含本主题对话', cb.manifest.parts.some((p) => p.kind === 'conversation'));
+  check('透镜：包含当前问题', cb.manifest.parts.some((p) => p.kind === 'question'));
+  check('透镜：统计未加入主题', cb.manifest.excludedTopics === 1);
+  check('透镜：有字数估算', cb.manifest.totalChars > 0);
+
+  // --- 理解版本差异（V0.6.3）---
+  const diffMod = await server.ssrLoadModule('/src/lib/diff.ts');
+  const dParts = diffMod.diffSentences('A。B。C。', 'A。B2。C。');
+  check('差异：标出新增句', dParts.some((p) => p.type === 'add' && p.text.includes('B2')));
+  check('差异：标出删除句', dParts.some((p) => p.type === 'remove' && p.text.includes('B')));
+  check('差异：未变句保留', dParts.filter((p) => p.type === 'same').length === 2);
+  check(
+    '差异：增删计数',
+    diffMod.diffSummary(dParts).added === 1 && diffMod.diffSummary(dParts).removed === 1,
+  );
+  check('差异：完全相同无增删', diffMod.diffSentences('X。', 'X。').every((p) => p.type === 'same'));
+  check('差异：空旧文本全是新增', diffMod.diffSentences('', 'Y。').every((p) => p.type === 'add'));
+
+  // --- 综合节点兜底（V0.6.3）---
+  const localSynth = reasoningMod.localSynthesis([
+    { title: 'A', summary: '甲的结论' },
+    { title: 'B', summary: '乙的结论' },
+  ]);
+  check('综合兜底：生成标题', localSynth.title.includes('A'));
+  check(
+    '综合兜底：汇总结论',
+    localSynth.conclusion.includes('甲的结论') && localSynth.conclusion.includes('乙的结论'),
+  );
+  check('综合兜底：矛盾默认为空', localSynth.contradictions === '');
+  const aiSynth = await reasoningMod.generateSynthesis({
+    provider: mockProvider,
+    apiKey: '',
+    projectTitle: 'P',
+    sources: [
+      { title: 'A', summary: '甲的结论' },
+      { title: 'B', summary: '乙的结论' },
+    ],
+  });
+  check('generateSynthesis 离线回退可用', aiSynth.conclusion.includes('甲的结论'));
+
+  // --- 思考回放（V0.6.3）---
+  const replayMod = await server.ssrLoadModule('/src/lib/replay.ts');
+  const replay = replayMod.buildThoughtReplay(
+    { id: 'p1', title: 'P', summary: 's', createdAt: 100, updatedAt: 900 },
+    [
+      {
+        ...t('r', null),
+        title: '根',
+        summary: '结论',
+        status: 'resolved',
+        createdAt: 200,
+        updatedAt: 800,
+        summaryUpdatedAt: 500,
+      },
+      {
+        ...t('c', 'r'),
+        title: '子',
+        status: 'parked',
+        createdAt: 300,
+        updatedAt: 700,
+        anchor: { sourceNodeId: 'r', anchorText: '锚点文字' },
+      },
+    ],
+    [{ id: 'm1', nodeId: 'r', role: 'user', content: '最初的问题', createdAt: 210 }],
+  );
+  check('回放：事件按时间排序', replay.events.every((e, i) => i === 0 || replay.events[i - 1].at <= e.at));
+  check('回放：包含项目起点', replay.events.some((e) => e.kind === 'project'));
+  check('回放：包含最初的问题', replay.events.some((e) => e.kind === 'topic' && (e.detail ?? '').includes('最初的问题')));
+  check(
+    '回放：包含分支与锚点',
+    replay.events.some((e) => e.kind === 'branch' && (e.detail ?? '').includes('锚点文字')),
+  );
+  check('回放：包含理解更新', replay.events.some((e) => e.kind === 'understanding'));
+  check('回放：统计最终结论', replay.conclusions.length === 1 && replay.conclusions[0].id === 'r');
+  check('回放：统计被搁置分支', replay.abandoned.some((a) => a.id === 'c'));
+  check('回放：时间范围正确', replay.startAt === 100 && replay.endAt === 500);
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

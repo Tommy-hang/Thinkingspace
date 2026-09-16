@@ -265,3 +265,27 @@ export const IconCopy = (p: P) => (
     <path d="M5 15V5a2 2 0 0 1 2-2h10" />
   </svg>
 );
+
+export const IconLens = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="7.5" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2" />
+  </svg>
+);
+
+export const IconHistory = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1" />
+    <path d="M3 4v4h4" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
+
+export const IconLayers = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="m12 3 8.5 4.5L12 12 3.5 7.5 12 3z" />
+    <path d="m4 12 8 4.3 8-4.3" />
+    <path d="m4 16.2 8 4.3 8-4.3" />
+  </svg>
+);

@@ -8,7 +8,9 @@ import {
   IconDownload,
   IconFolder,
   IconHelp,
+  IconHistory,
   IconInfo,
+  IconLayers,
   IconLayout,
   IconMap,
   IconMoon,
@@ -45,6 +47,8 @@ export function TopBar() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const setHelpOpen = useStore((s) => s.setHelpOpen);
   const setKnowledgeOpen = useStore((s) => s.setKnowledgeOpen);
+  const setReplayOpen = useStore((s) => s.setReplayOpen);
+  const setSynthesisOpen = useStore((s) => s.setSynthesisOpen);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
   const setFeedbackOpen = useStore((s) => s.setFeedbackOpen);
   const cloudUser = useStore((s) => s.cloudUser);
@@ -219,6 +223,24 @@ export function TopBar() {
         </button>
         <button
           className="btn btn-ghost hidden md:inline-flex"
+          onClick={() => setReplayOpen(true)}
+          title="思考回放（看这棵树是怎么长出来的）"
+          disabled={!project}
+        >
+          <IconHistory />
+          <span className="hidden lg:inline">回放</span>
+        </button>
+        <button
+          className="btn btn-ghost hidden md:inline-flex"
+          onClick={() => setSynthesisOpen(true)}
+          title="综合多个主题，收敛成更高层的认识"
+          disabled={!project}
+        >
+          <IconLayers />
+          <span className="hidden lg:inline">综合</span>
+        </button>
+        <button
+          className="btn btn-ghost hidden md:inline-flex"
           onClick={() => applyAutoLayout()}
           title="整理地图布局"
           disabled={!project}
@@ -363,6 +385,26 @@ export function TopBar() {
               >
                 <IconMap width={14} height={14} />
                 <span className="flex-1">知识地图</span>
+              </MenuItem>
+              <MenuItem
+                disabled={!project}
+                onClick={() => {
+                  close();
+                  setReplayOpen(true);
+                }}
+              >
+                <IconHistory width={14} height={14} />
+                <span className="flex-1">思考回放</span>
+              </MenuItem>
+              <MenuItem
+                disabled={!project}
+                onClick={() => {
+                  close();
+                  setSynthesisOpen(true);
+                }}
+              >
+                <IconLayers width={14} height={14} />
+                <span className="flex-1">综合多个主题</span>
               </MenuItem>
               <MenuItem
                 disabled={!project}

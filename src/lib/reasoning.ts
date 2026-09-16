@@ -215,3 +215,83 @@ export async function generateInsight(opts: {
   if (text.length >= 10) return text;
   return localInsight(topicTitle, children);
 }
+
+/* ============================ Synthesis（综合节点） ============================ */
+
+export interface SynthesisResult {
+  title: string;
+  conclusion: string;
+  contradictions: string;
+}
+
+const SYNTHESIS_PROMPT = [
+  '你是研究助手。用户在一个思考空间里探索了若干相关主题，每个主题都有自己的「当前理解」。',
+  '请把它们收敛成一个更高层的统一认识，输出 JSON：',
+  '{',
+  '  "title": "这次综合真正形成的知识点，不超过 14 个汉字，名词性短语",',
+  '  "conclusion": "综合后的统一理解，2-4 句；要讲出各主题之间如何相互支撑或相互制约，不要罗列",',
+  '  "contradictions": "这些主题之间尚未解决的矛盾、分歧或缺口；没有就留空字符串"',
+  '}',
+  '只输出 JSON，不要任何解释或代码块标记。使用与内容相同的语言。',
+].join('\n');
+
+export function localSynthesis(
+  sources: { title: string; summary: string }[],
+): SynthesisResult {
+  const parts = sources
+    .filter((s) => s.summary.trim())
+    .map((s) => `- ${s.title}：${s.summary}`);
+  return {
+    title: sources.map((s) => s.title).join(' + ').slice(0, TITLE_MAX) || '综合理解',
+    conclusion: parts.length
+      ? `把这几条线索放在一起，目前可以这样理解：\n${parts.join('\n')}`
+      : '',
+    contradictions: '',
+  };
+}
+
+export async function generateSynthesis(opts: {
+  provider: ProviderConfig;
+  apiKey: string;
+  projectTitle: string;
+  sources: { title: string; summary: string }[];
+  signal?: AbortSignal;
+}): Promise<SynthesisResult> {
+  const { provider, apiKey, projectTitle, sources } = opts;
+
+  const body = [
+    `【思考空间】${projectTitle}`,
+    '',
+    '【待综合的主题与当前理解】',
+    ...sources.map((s) => `### ${s.title}\n${s.summary || '（暂无概述）'}`),
+  ].join('\n');
+
+  const raw = await ask(
+    provider,
+    apiKey,
+    [
+      { role: 'system', content: SYNTHESIS_PROMPT },
+      { role: 'user', content: body.slice(0, 8000) },
+    ],
+    opts.signal,
+  );
+
+  if (raw) {
+    const parsed = extractJson(raw) as {
+      title?: unknown;
+      conclusion?: unknown;
+      contradictions?: unknown;
+    } | null;
+    const title = str(parsed?.title).slice(0, TITLE_MAX);
+    const conclusion = str(parsed?.conclusion);
+    if (conclusion.length >= 10) {
+      return {
+        title: title.length >= 2 ? title : localSynthesis(sources).title,
+        conclusion,
+        contradictions: str(parsed?.contradictions),
+      };
+    }
+  }
+
+  return localSynthesis(sources);
+}

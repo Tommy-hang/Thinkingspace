@@ -16,6 +16,8 @@ import { ApiKeyGuide } from './components/ApiKeyGuide';
 import { FeedbackPanel } from './components/FeedbackPanel';
 import { Onboarding } from './components/Onboarding';
 import { KnowledgeMapView } from './components/KnowledgeMapView';
+import { ThoughtReplayView } from './components/ThoughtReplayView';
+import { SynthesisPanel } from './components/SynthesisPanel';
 import { NodeMenu } from './components/NodeMenu';
 import { buildNodeHash, parseNodeHash } from './lib/link';
 
@@ -151,6 +153,8 @@ export default function App() {
       )}
 
       <KnowledgeMapView />
+      <ThoughtReplayView />
+      <SynthesisPanel />
       <NodeMenu onClose={() => useStore.getState().openNodeMenu(null)} />
       <SearchPanel />
       <SettingsPanel />

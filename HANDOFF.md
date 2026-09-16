@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.2**
+> 最后更新：2026-09-16 · 当前版本 **V0.6.3**
 
 ---
 
@@ -176,6 +176,20 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   （`security definer` + 只允许删 `auth.uid()`）；账号面板里可注销，可选是否同时清本机
 - **用量提示**：账号面板显示已用项目数 / 内容体积 / 最大项目，接近上限变红（`src/lib/usage.ts`）
 
+### V0.6.3 思考增强 ✅（用户从头脑风暴中挑选的四个方向）
+- **上下文透镜**：`contextBuilder.ts` 现在返回 `{ messages, manifest }`，把「本次用了哪些内容」
+  （项目目标 / 上游主题 / 分支锚点 / 联网结果 / @ 引用 / 本主题对话 / 当前问题 / 未加入主题数）
+  挂到 `Message.contextManifest`，每条 AI 回答旁可展开查看（`ContextLens.tsx`）
+  - 意义：把「UI 结构 = AI 上下文结构」这个核心卖点变成用户看得见的东西
+- **综合节点**：多选主题 → `generateSynthesis` 收敛出「统一观点 + 未解决矛盾」，
+  生成一张新卡片（`TopicNode.synthesis`）并用 `reference` 边连回来源；来源更新后提示「可能已过期」并可重新综合
+  - 入口：顶部「综合」按钮 / 手机「更多」→ `SynthesisPanel.tsx`
+- **思考回放**：`lib/replay.ts` 只用已有时间戳推导事件流（起点 / 主题 / 分支+锚点 / 理解更新 / 综合），
+  全屏视图带时间轴拖动与播放，末尾展示「最终形成的理解」与「被搁置的分支」（`ThoughtReplayView.tsx`）
+- **当前理解版本差异**：更新「当前理解」不再直接覆盖——`lib/diff.ts` 做句子级 LCS 差异，
+  展示 +/− 后由用户「采纳 / 放弃」；采纳时旧版进 `TopicNode.summaryVersions`（保留 10 个），可回看历史
+  - 知识地图的批量更新走 `refreshSummary(id, { autoApply: true })`，不弹差异
+
 ---
 
 ## 6. 核心文件地图
@@ -203,6 +217,8 @@ src/
     exportImport.ts           导出 / 导入
     projectTransfer.ts        跨项目拆分 / 复制 / 整项目克隆（纯函数，可测试）
     usage.ts                  云端用量估算（与 schema.sql 的上限保持一致）
+    diff.ts                   句子级差异（LCS），用于「当前理解」版本确认
+    replay.ts                 思考回放事件流（纯函数，只用已有时间戳推导）
     storage.ts                ⭐ 本地持久化 + **数据迁移唯一入口**
     device.ts                 触屏/窄屏检测
     link.ts                   主题直链（hash 路由）+ 复制
@@ -312,9 +328,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.2
+版本         V0.6.3
 最新提交     （见 git log -1）
-分支         main 与 v0.6.2 已同步
+分支         main 与 v0.6.3 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

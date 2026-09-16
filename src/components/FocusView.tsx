@@ -6,10 +6,12 @@ import {
   type ModelPreset,
   type NodeStatus,
   type ThinkingEffort,
+  type TopicNode,
 } from '../types';
 import { ancestorPath } from '../lib/ai/contextBuilder';
 import { Popover, MenuItem } from './Popover';
 import { Markdown } from './Markdown';
+import { ContextLens } from './ContextLens';
 import {
   IconBranch,
   IconCheck,
@@ -17,6 +19,8 @@ import {
   IconDownload,
   IconEdit,
   IconGlobe,
+  IconHistory,
+  IconLayers,
   IconLink,
   IconMore,
   IconPin,
@@ -29,6 +33,7 @@ import {
   IconX,
 } from './icons';
 import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
+import { diffSentences, diffSummary } from '../lib/diff';
 import { buildNodeUrl, copyText } from '../lib/link';
 import { extractMentions, firstSentence } from '../lib/mention';
 import {
@@ -129,6 +134,164 @@ function SourceList({ sources }: { sources: NonNullable<Message['sources']> }) {
   );
 }
 
+/** 新的「当前理解」待确认：展示句子级 +/− 差异，用户采纳后才成为新版本 */
+function SummaryReview({
+  current,
+  proposed,
+  onAccept,
+  onDiscard,
+}: {
+  current: string;
+  proposed: string;
+  onAccept: () => void;
+  onDiscard: () => void;
+}) {
+  const parts = diffSentences(current, proposed);
+  const { added, removed } = diffSummary(parts);
+
+  return (
+    <div
+      className="rounded-xl p-3"
+      style={{
+        background: 'color-mix(in srgb, var(--accent) 6%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--accent) 26%, transparent)',
+      }}
+    >
+      <div
+        className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium"
+        style={{ color: 'var(--accent)' }}
+      >
+        <IconSpark width={12} height={12} />
+        新的「当前理解」待确认
+        <span className="ml-auto text-[10.5px]" style={{ color: 'var(--faint)' }}>
+          +{added} / −{removed}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-0.5 text-[12.5px] leading-relaxed">
+        {parts.map((p, i) => (
+          <div
+            key={i}
+            style={{
+              color:
+                p.type === 'add' ? '#16a34a' : p.type === 'remove' ? '#dc2626' : 'var(--muted)',
+              textDecoration: p.type === 'remove' ? 'line-through' : 'none',
+              opacity: p.type === 'same' ? 0.72 : 1,
+            }}
+          >
+            <span style={{ opacity: 0.7 }}>
+              {p.type === 'add' ? '+ ' : p.type === 'remove' ? '− ' : '　'}
+            </span>
+            {p.text}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2.5 flex justify-end gap-2">
+        <button className="btn btn-ghost !px-2 !py-0.5 !text-[11.5px]" onClick={onDiscard}>
+          放弃
+        </button>
+        <button className="btn btn-primary !px-2.5 !py-0.5 !text-[11.5px]" onClick={onAccept}>
+          采纳为新版本
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** 综合节点：来源、未解决矛盾，以及「来源更新后可能过期」的提示 */
+function SynthesisBlock({
+  node,
+  nodes,
+  busy,
+  onRefresh,
+  onOpenSource,
+}: {
+  node: TopicNode;
+  nodes: TopicNode[];
+  busy: boolean;
+  onRefresh: () => void;
+  onOpenSource: (id: string) => void;
+}) {
+  const syn = node.synthesis;
+  if (!syn) return null;
+
+  const stale = syn.sources.filter((s) => {
+    const cur = nodes.find((n) => n.id === s.id);
+    return !cur || cur.updatedAt > s.updatedAt;
+  });
+
+  return (
+    <div
+      className="mt-3 rounded-lg p-2.5"
+      style={{ background: 'var(--panel-2)', border: '1px solid var(--border)' }}
+    >
+      <div
+        className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium"
+        style={{ color: 'var(--muted)' }}
+      >
+        <IconLayers width={11} height={11} />
+        综合自 {syn.sources.length} 个主题
+      </div>
+
+      <div className="mb-2 flex flex-wrap gap-1">
+        {syn.sources.map((s) => (
+          <button
+            key={s.id}
+            className="chip"
+            title="点击跳转到这个主题"
+            onClick={() => onOpenSource(s.id)}
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
+
+      {syn.contradictions.trim() && (
+        <div
+          className="mb-2 rounded-lg p-2 text-[12px] leading-relaxed"
+          style={{
+            background: 'color-mix(in srgb, #f59e0b 10%, transparent)',
+            border: '1px solid color-mix(in srgb, #f59e0b 34%, transparent)',
+            color: 'var(--text)',
+          }}
+        >
+          <div className="mb-0.5 text-[10.5px] font-medium" style={{ color: '#b45309' }}>
+            尚未解决的矛盾
+          </div>
+          {syn.contradictions}
+        </div>
+      )}
+
+      {stale.length > 0 ? (
+        <div
+          className="flex flex-wrap items-center gap-1.5 text-[11px]"
+          style={{ color: '#b45309' }}
+        >
+          ⚠ 有 {stale.length} 个来源已更新，这个综合可能已过期
+          <button
+            className="btn btn-ghost !px-1.5 !py-0 !text-[11px]"
+            style={{ color: '#b45309' }}
+            disabled={busy}
+            onClick={onRefresh}
+          >
+            {busy ? '重新综合中…' : '重新综合'}
+          </button>
+        </div>
+      ) : (
+        <button
+          className="btn btn-ghost !px-1.5 !py-0 !text-[11px]"
+          style={{ color: 'var(--faint)' }}
+          disabled={busy}
+          onClick={onRefresh}
+        >
+          {busy ? '重新综合中…' : '重新综合'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function MessageBubble({ message, searching }: { message: Message; searching?: boolean }) {
   const isUser = message.role === 'user';
   return (
@@ -195,6 +358,9 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const togglePin = useStore((s) => s.togglePin);
   const refreshSummary = useStore((s) => s.refreshSummary);
   const mergeInsights = useStore((s) => s.mergeInsights);
+  const applyPendingSummary = useStore((s) => s.applyPendingSummary);
+  const discardPendingSummary = useStore((s) => s.discardPendingSummary);
+  const refreshSynthesis = useStore((s) => s.refreshSynthesis);
   const generateSuggestionsFor = useStore((s) => s.generateSuggestionsFor);
   const setSuggestions = useStore((s) => s.setSuggestions);
   const addOpenQuestion = useStore((s) => s.addOpenQuestion);
@@ -215,8 +381,9 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const [editDraft, setEditDraft] = useState('');
   const [pulseId, setPulseId] = useState<string | null>(null);
   const [understandingOpen, setUnderstandingOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [questionDraft, setQuestionDraft] = useState('');
-  const [busy, setBusy] = useState<null | 'summary' | 'insight' | 'suggest'>(null);
+  const [busy, setBusy] = useState<null | 'summary' | 'insight' | 'suggest' | 'synthesis'>(null);
   const pendingDraft = useRef<string | null>(null);
   const questionInputRef = useRef<HTMLInputElement>(null);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -373,6 +540,15 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
     setBusy('suggest');
     try {
       await generateSuggestionsFor(nodeId);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRefreshSynthesis = async () => {
+    setBusy('synthesis');
+    try {
+      await refreshSynthesis(nodeId);
     } finally {
       setBusy(null);
     }
@@ -793,6 +969,11 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                   {intentLabel(node.intent)}
                 </span>
               )}
+              {node.synthesis && (
+                <span className="chip" title="由多个主题收敛而成">
+                  综合节点
+                </span>
+              )}
               {node.pinned && <span className="chip">已收藏</span>}
               <span className="chip">{Math.ceil(nodeMessages.length / 2)} 轮</span>
               {unresolvedCount > 0 && <span className="chip">待解决 {unresolvedCount}</span>}
@@ -823,23 +1004,86 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
 
               {understandingOpen && (
                 <div className="px-3 pb-3">
-                  {node.summary ? (
-                    <p className="ts-prose text-[13px]">{node.summary}</p>
+                  {node.pendingSummary ? (
+                    <SummaryReview
+                      current={node.summary}
+                      proposed={node.pendingSummary.text}
+                      onAccept={() => applyPendingSummary(nodeId)}
+                      onDiscard={() => discardPendingSummary(nodeId)}
+                    />
                   ) : (
-                    <p className="text-[12.5px]" style={{ color: 'var(--faint)' }}>
-                      还没有「当前理解」。聊过几轮后，点下面的按钮生成。
-                    </p>
+                    <>
+                      {node.summary ? (
+                        <p className="ts-prose text-[13px]">{node.summary}</p>
+                      ) : (
+                        <p className="text-[12.5px]" style={{ color: 'var(--faint)' }}>
+                          还没有「当前理解」。聊过几轮后，点下面的按钮生成。
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          className="btn btn-ghost !px-2 !py-0.5 !text-[11.5px]"
+                          disabled={busy === 'summary' || nodeMessages.length === 0}
+                          style={{ opacity: nodeMessages.length === 0 ? 0.4 : 1 }}
+                          onClick={() => void handleRefreshSummary()}
+                        >
+                          <IconRefresh width={12} height={12} />
+                          {busy === 'summary' ? '生成中…' : '更新理解'}
+                        </button>
+
+                        {(node.summaryVersions?.length ?? 0) > 0 && (
+                          <button
+                            className="btn btn-ghost !px-2 !py-0.5 !text-[11.5px]"
+                            onClick={() => setHistoryOpen((v) => !v)}
+                          >
+                            <IconHistory width={12} height={12} />
+                            历史版本 · {node.summaryVersions!.length}
+                          </button>
+                        )}
+                      </div>
+
+                      {historyOpen && (node.summaryVersions?.length ?? 0) > 0 && (
+                        <div className="mt-2 flex flex-col gap-1.5">
+                          {[...(node.summaryVersions ?? [])].reverse().map((v, i) => (
+                            <div
+                              key={`${v.at}-${i}`}
+                              className="rounded-lg p-2"
+                              style={{
+                                background: 'var(--panel-2)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              <div className="mb-0.5 text-[10.5px]" style={{ color: 'var(--faint)' }}>
+                                {new Date(v.at).toLocaleString('zh-CN', {
+                                  month: 'numeric',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                              <div
+                                className="text-[12px] leading-relaxed"
+                                style={{ color: 'var(--muted)' }}
+                              >
+                                {v.text}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  <button
-                    className="btn btn-ghost mt-2 !px-2 !py-0.5 !text-[11.5px]"
-                    disabled={busy === 'summary' || nodeMessages.length === 0}
-                    style={{ opacity: nodeMessages.length === 0 ? 0.4 : 1 }}
-                    onClick={() => void handleRefreshSummary()}
-                  >
-                    <IconRefresh width={12} height={12} />
-                    {busy === 'summary' ? '生成中…' : '更新理解'}
-                  </button>
+                  {node.synthesis && (
+                    <SynthesisBlock
+                      node={node}
+                      nodes={nodes}
+                      busy={busy === 'synthesis'}
+                      onRefresh={() => void handleRefreshSynthesis()}
+                      onOpenSource={(id) => focusNodeAt(id)}
+                    />
+                  )}
 
                   {node.insight && (
                     <div
@@ -1045,6 +1289,12 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                             !m.content
                           }
                         />
+                      )}
+
+                      {!isEditing && !isUser && m.contextManifest && (
+                        <div style={{ width: 'min(760px, 92%)' }}>
+                          <ContextLens manifest={m.contextManifest} />
+                        </div>
                       )}
 
                       {!isEditing && (

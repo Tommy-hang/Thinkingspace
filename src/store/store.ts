@@ -25,7 +25,7 @@ import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
 import { getVisibleNodes } from '../lib/tree';
 import { intentToEdgeType } from '../lib/branchIntent';
-import { generateDigest, generateInsight, generateSuggestions } from '../lib/reasoning';
+import { generateDigest, generateInsight, generateSuggestions, generateSynthesis } from '../lib/reasoning';
 import { generateKnowledgeMap, type KnowledgeSourceItem } from '../lib/knowledgeMap';
 import { cloudConfigured } from '../lib/cloud/client';
 import { isSmallScreen } from '../lib/device';
@@ -80,6 +80,8 @@ interface UIState {
   focusMessageId: string | null;
   helpOpen: boolean;
   knowledgeOpen: boolean;
+  replayOpen: boolean;
+  synthesisOpen: boolean;
   knowledgeProgress: { phase: 'summaries' | 'map'; current: number; total: number } | null;
 
   cloudUser: CloudUser | null;
@@ -124,8 +126,12 @@ interface Actions {
   togglePin: (id: string) => void;
   renameNode: (id: string, title: string) => void;
   applyAutoTitle: (id: string, title?: string, summary?: string) => void;
-  refreshSummary: (id: string) => Promise<void>;
+  refreshSummary: (id: string, options?: { autoApply?: boolean }) => Promise<void>;
   mergeInsights: (id: string) => Promise<void>;
+  applyPendingSummary: (id: string) => void;
+  discardPendingSummary: (id: string) => void;
+  createSynthesisNode: (sourceNodeIds: string[]) => Promise<string | null>;
+  refreshSynthesis: (nodeId: string) => Promise<void>;
   setSuggestions: (id: string, forMessageId: string, list: BranchSuggestion[]) => void;
   generateSuggestionsFor: (id: string) => Promise<void>;
   addOpenQuestion: (text: string, sourceNodeId?: string, sourceMessageId?: string) => void;
@@ -169,6 +175,8 @@ interface Actions {
   openNodeMenu: (id: string | null, anchor?: { x: number; y: number } | null) => void;
   setHelpOpen: (open: boolean) => void;
   setKnowledgeOpen: (open: boolean) => void;
+  setReplayOpen: (open: boolean) => void;
+  setSynthesisOpen: (open: boolean) => void;
   locateNode: (id: string) => void;
   buildKnowledgeMap: () => Promise<void>;
 
@@ -405,6 +413,8 @@ export const useStore = create<StoreState>((set, get) => ({
   focusMessageId: null,
   helpOpen: false,
   knowledgeOpen: false,
+  replayOpen: false,
+  synthesisOpen: false,
   knowledgeProgress: null,
   cloudUser: null,
   cloudStatus: cloudConfigured ? 'signed-out' : 'disabled',
@@ -726,18 +736,31 @@ export const useStore = create<StoreState>((set, get) => ({
       nodes: s.nodes.map((n) => {
         if (n.id !== id) return n;
         const nextTitle = n.titleLocked ? n.title : title || n.title;
+        const changed =
+          typeof summary === 'string' && summary.trim() !== '' && summary !== n.summary;
+        // 旧版本进历史，让「当前理解」变成可回看的认知演变记录
+        const versions = changed
+          ? [
+              ...(n.summaryVersions ?? []),
+              { text: n.summary, at: n.summaryUpdatedAt ?? n.updatedAt },
+            ]
+              .filter((v) => v.text.trim())
+              .slice(-10)
+          : n.summaryVersions;
         return {
           ...n,
           title: nextTitle,
           summary: summary ?? n.summary,
-          summaryUpdatedAt: summary ? Date.now() : n.summaryUpdatedAt,
+          summaryVersions: versions,
+          summaryUpdatedAt: changed ? Date.now() : n.summaryUpdatedAt,
+          pendingSummary: changed ? undefined : n.pendingSummary,
           updatedAt: Date.now(),
         };
       }),
     })),
 
-  /** 根据整段对话重新生成「当前理解」 */
-  refreshSummary: async (id) => {
+  /** 根据整段对话重新生成「当前理解」（已有理解时先给差异，用户确认后生效） */
+  refreshSummary: async (id, options) => {
     const s = get();
     const node = s.nodes.find((n) => n.id === id);
     const project = s.projects.find((p) => p.id === node?.projectId);
@@ -765,8 +788,42 @@ export const useStore = create<StoreState>((set, get) => ({
 
     const current = get().nodes.find((n) => n.id === id);
     if (!current) return;
+
+    // 已有「当前理解」→ 先给出差异让用户确认；批量场景（知识地图）直接写入
+    if (!options?.autoApply && current.summary.trim()) {
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                pendingSummary: {
+                  text: digest.summary,
+                  title: current.titleLocked ? undefined : digest.title,
+                  proposedAt: Date.now(),
+                },
+              }
+            : n,
+        ),
+      }));
+      return;
+    }
+
     get().applyAutoTitle(id, current.titleLocked ? undefined : digest.title, digest.summary);
   },
+
+  /** 采纳待确认的新「当前理解」 */
+  applyPendingSummary: (id) => {
+    const node = get().nodes.find((n) => n.id === id);
+    if (!node?.pendingSummary) return;
+    pushHistory();
+    get().applyAutoTitle(id, node.pendingSummary.title, node.pendingSummary.text);
+  },
+
+  /** 放弃待确认的新「当前理解」 */
+  discardPendingSummary: (id) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) => (n.id === id ? { ...n, pendingSummary: undefined } : n)),
+    })),
 
   /** Merge Insights：把子分支的探索综合成父主题更高层的理解 */
   mergeInsights: async (id) => {
@@ -791,6 +848,117 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((n) =>
         n.id === id ? { ...n, insight, insightUpdatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  /** 综合节点：把多个主题收敛成一个更高层的认识 */
+  createSynthesisNode: async (sourceNodeIds) => {
+    const s = get();
+    const project = s.projects.find((p) => p.id === s.activeProjectId);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!project || !provider) return null;
+
+    const sources = sourceNodeIds
+      .map((id) => s.nodes.find((n) => n.id === id))
+      .filter((n): n is TopicNode => Boolean(n));
+    if (sources.length < 2) return null;
+
+    const result = await generateSynthesis({
+      provider,
+      apiKey: get().secrets[provider.id] ?? '',
+      projectTitle: project.title,
+      sources: sources.map((n) => ({ title: n.title, summary: n.insight || n.summary })),
+    });
+
+    const now = Date.now();
+    const nodeId = uid('n_');
+    const roots = s.nodes.filter((n) => n.projectId === project.id && n.parentId === null);
+    const node: TopicNode = {
+      id: nodeId,
+      projectId: project.id,
+      parentId: null,
+      title: result.title,
+      summary: result.conclusion,
+      position: { x: 0, y: (roots.length + 1) * 168 },
+      status: 'resolved',
+      titleLocked: true,
+      summaryUpdatedAt: now,
+      synthesis: {
+        sourceNodeIds: sources.map((n) => n.id),
+        sources: sources.map((n) => ({
+          id: n.id,
+          title: n.title,
+          updatedAt: n.summaryUpdatedAt ?? n.updatedAt,
+        })),
+        conclusion: result.conclusion,
+        contradictions: result.contradictions,
+        generatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    };
+    const edges: GraphEdge[] = sources.map((src) => ({
+      id: uid('e_'),
+      projectId: project.id,
+      source: nodeId,
+      target: src.id,
+      type: 'reference',
+      createdAt: now,
+    }));
+
+    pushHistory();
+    set((state) => ({
+      nodes: [...state.nodes, node],
+      edges: [...state.edges, ...edges],
+      selectedNodeId: nodeId,
+    }));
+    return nodeId;
+  },
+
+  /** 来源有更新后，重新综合一次 */
+  refreshSynthesis: async (nodeId) => {
+    const s = get();
+    const node = s.nodes.find((n) => n.id === nodeId);
+    const project = s.projects.find((p) => p.id === node?.projectId);
+    const provider = s.settings.providers.find((p) => p.id === s.settings.activeProviderId);
+    if (!node?.synthesis || !project || !provider) return;
+
+    const sources = node.synthesis.sourceNodeIds
+      .map((id) => s.nodes.find((n) => n.id === id))
+      .filter((n): n is TopicNode => Boolean(n));
+    if (sources.length === 0) return;
+
+    const result = await generateSynthesis({
+      provider,
+      apiKey: get().secrets[provider.id] ?? '',
+      projectTitle: project.title,
+      sources: sources.map((n) => ({ title: n.title, summary: n.insight || n.summary })),
+    });
+
+    const now = Date.now();
+    pushHistory();
+    set((state) => ({
+      nodes: state.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              summary: result.conclusion,
+              summaryUpdatedAt: now,
+              synthesis: {
+                ...n.synthesis!,
+                conclusion: result.conclusion,
+                contradictions: result.contradictions,
+                generatedAt: now,
+                sources: sources.map((src) => ({
+                  id: src.id,
+                  title: src.title,
+                  updatedAt: src.summaryUpdatedAt ?? src.updatedAt,
+                })),
+              },
+              updatedAt: now,
+            }
+          : n,
       ),
     }));
   },
@@ -1142,7 +1310,7 @@ export const useStore = create<StoreState>((set, get) => ({
       }
     }
 
-    const context = buildContext({
+    const { messages: context, manifest } = buildContext({
       project,
       nodes: get().nodes,
       messages: get().messages.filter((m) => m.id !== assistantMessage.id),
@@ -1152,6 +1320,13 @@ export const useStore = create<StoreState>((set, get) => ({
       searchSources: sources,
       mentionedNodeIds: mentions,
     });
+
+    // 上下文透镜：把「本次用了哪些内容」挂在回答上，供用户展开查看
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === assistantMessage.id ? { ...m, contextManifest: manifest } : m,
+      ),
+    }));
 
     const controller = new AbortController();
     controllers.set(nodeId, controller);
@@ -1279,6 +1454,8 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ nodeMenuId: id, nodeMenuAnchor: anchor ?? null }),
   setHelpOpen: (open) => set({ helpOpen: open }),
   setKnowledgeOpen: (open) => set({ knowledgeOpen: open }),
+  setReplayOpen: (open) => set({ replayOpen: open }),
+  setSynthesisOpen: (open) => set({ synthesisOpen: open }),
 
   setAuthOpen: (open) => set({ authOpen: open }),
   setPrivacyOpen: (open) => set({ privacyOpen: open }),
@@ -1456,7 +1633,7 @@ export const useStore = create<StoreState>((set, get) => ({
       set({
         knowledgeProgress: { phase: 'summaries', current: i, total: withContent.length },
       });
-      await get().refreshSummary(withContent[i].id);
+      await get().refreshSummary(withContent[i].id, { autoApply: true });
     }
     set({
       knowledgeProgress: {

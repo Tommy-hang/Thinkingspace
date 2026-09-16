@@ -56,6 +56,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - `src/lib/exportImport.ts` — 导出 / 导入
 - `src/lib/projectTransfer.ts` — 跨项目拆分 / 复制 / 整项目克隆（纯函数）
 - `src/lib/usage.ts` — 云端用量估算（上限需与 `supabase/schema.sql` 保持一致）
+- `src/lib/diff.ts` — 句子级差异（LCS），用于「当前理解」版本确认
+- `src/lib/replay.ts` — 思考回放事件流（纯函数）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
 
@@ -85,6 +87,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.1 ✅ 卡片可拆分 / 复制到另一个项目（连同全部子分支、对话与相关待解决问题）
   - V0.6.2 ✅ 同步冲突保底（另存副本，绝不静默丢数据）/ 自助删除账号
     （`schema.sql` 的 `delete_my_account()`）/ 云端用量提示
+  - V0.6.3 ✅ 上下文透镜（回答旁可见 AI 用了哪些内容）/ 综合节点（多主题收敛）/ 思考回放 /
+    当前理解版本差异（+/− 确认后才生效）
 
 ## 安全规则
 

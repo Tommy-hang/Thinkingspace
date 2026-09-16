@@ -88,6 +88,72 @@ export interface BranchSuggestion {
   question: string;
 }
 
+/** 「上下文透镜」：一次回答实际使用了哪些内容 */
+export type ContextPartKind =
+  | 'project'
+  | 'ancestor'
+  | 'anchor'
+  | 'search'
+  | 'mention'
+  | 'conversation'
+  | 'question';
+
+export interface ContextPart {
+  kind: ContextPartKind;
+  /** 展示用短标签，如「项目目标」「上游主题」 */
+  label: string;
+  /** 具体内容，如主题名 / 轮数 / 锚点文字 */
+  detail?: string;
+}
+
+export interface ContextManifest {
+  parts: ContextPart[];
+  /** 同一项目里、本次没有加入的其它主题数量 */
+  excludedTopics: number;
+  /** 估算的上下文字数（含系统提示词） */
+  totalChars: number;
+}
+
+/** 「当前理解」的一个历史版本 */
+export interface SummaryVersion {
+  text: string;
+  at: number;
+}
+
+/** 综合节点：由多个主题收敛而成 */
+export interface SynthesisSource {
+  id: string;
+  title: string;
+  /** 综合时该主题的「当前理解」更新时间，用于判断综合是否过期 */
+  updatedAt: number;
+}
+
+export interface SynthesisMeta {
+  sourceNodeIds: string[];
+  sources: SynthesisSource[];
+  /** 综合后得到的统一观点 */
+  conclusion: string;
+  /** 尚未解决的矛盾或分歧（可为空） */
+  contradictions: string;
+  generatedAt: number;
+}
+
+/** 思考回放：由时间戳推导出的一个事件 */
+export type ReplayEventKind =
+  | 'project'
+  | 'topic'
+  | 'branch'
+  | 'understanding'
+  | 'insight';
+
+export interface ReplayEvent {
+  at: number;
+  kind: ReplayEventKind;
+  nodeId?: string;
+  title: string;
+  detail?: string;
+}
+
 /** 知识地图上的一个知识点（只描述知识，不描述卡片） */
 export interface KnowledgePoint {
   id: string;
@@ -149,9 +215,15 @@ export interface TopicNode {
   intent?: BranchIntent;
   /** 「当前理解」的生成时间 */
   summaryUpdatedAt?: number;
+  /** 「当前理解」的历史版本（保留最近 10 个） */
+  summaryVersions?: SummaryVersion[];
+  /** 待用户确认的新「当前理解」——差异确认后才会成为正式版本 */
+  pendingSummary?: { text: string; title?: string; proposedAt: number };
   /** Merge Insights：由子分支综合而成的更高层理解 */
   insight?: string;
   insightUpdatedAt?: number;
+  /** 综合节点：由多个主题收敛而成 */
+  synthesis?: SynthesisMeta;
   /** AI 建议的探索方向（挂在最后一条回答上） */
   suggestions?: BranchSuggestion[];
   suggestionsFor?: string;
@@ -176,6 +248,8 @@ export interface Message {
   sources?: SearchSource[];
   /** 本条提问通过 @ 引用了哪些主题 */
   mentions?: string[];
+  /** 本次回答实际使用了哪些上下文（上下文透镜） */
+  contextManifest?: ContextManifest;
   createdAt: number;
   /** true while the model is still streaming into this message */
   pending?: boolean;

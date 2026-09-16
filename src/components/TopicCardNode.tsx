@@ -62,6 +62,10 @@ function TopicCardNodeImpl({ data, selected }: NodeProps<TopicFlowNode>) {
           </span>
         )}
 
+        {topic.synthesis && (
+          <span className="chip shrink-0 !px-1.5 !py-0 !text-[10px]">综合</span>
+        )}
+
         {intent && (
           <span className="chip shrink-0 !px-1.5 !py-0 !text-[10px]">{intent}</span>
         )}
