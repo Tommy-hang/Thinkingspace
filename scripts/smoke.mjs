@@ -298,6 +298,63 @@ try {
   check('链接解析', linkMod.parseNodeHash('#/p/p1/n/n2')?.nodeId === 'n2');
   check('非法链接安全返回', linkMod.parseNodeHash('') === null);
 
+  // --- 跨项目拆分 / 复制（V0.6.1）---
+  const transferMod = await server.ssrLoadModule('/src/lib/projectTransfer.ts');
+  const baseSlice = {
+    projects: [
+      {
+        id: 'p1',
+        title: '原项目',
+        summary: '',
+        createdAt: 0,
+        updatedAt: 0,
+        openQuestions: [{ id: 'q1', text: '为什么', sourceNodeId: 'B', createdAt: 0 }],
+      },
+      { id: 'p2', title: '目标项目', summary: '', createdAt: 0, updatedAt: 0 },
+    ],
+    nodes: demoNodes,
+    edges: [
+      { id: 'e1', projectId: 'p1', source: 'A', target: 'B', type: 'branch', createdAt: 0 },
+      { id: 'e2', projectId: 'p1', source: 'A', target: 'F', type: 'branch', createdAt: 0 },
+      { id: 'e3', projectId: 'p1', source: 'B', target: 'C', type: 'branch', createdAt: 0 },
+      { id: 'e4', projectId: 'p1', source: 'B', target: 'D', type: 'branch', createdAt: 0 },
+    ],
+    messages: [
+      { id: 'm1', nodeId: 'B', role: 'user', content: 'x', createdAt: 0 },
+      { id: 'm2', nodeId: 'C', role: 'assistant', content: 'y', createdAt: 0 },
+      { id: 'm3', nodeId: 'A', role: 'user', content: 'z', createdAt: 0 },
+    ],
+  };
+
+  const moved = transferMod.moveSubtreeToProject(baseSlice, 'B', 'p2');
+  check('拆分：子树移入目标项目', moved.nodes.filter((n) => n.projectId === 'p2').length === 3);
+  check('拆分：子树根脱离原父节点', moved.nodes.find((n) => n.id === 'B').parentId === null);
+  check('拆分：后代保持父子关系', moved.nodes.find((n) => n.id === 'C').parentId === 'B');
+  check('拆分：跨越边界的连线被移除', !moved.edges.some((e) => e.id === 'e1'));
+  check('拆分：子树内部连线随项目迁移', moved.edges.find((e) => e.id === 'e3').projectId === 'p2');
+  check('拆分：原项目其它连线保留', moved.edges.some((e) => e.id === 'e2'));
+  check(
+    '拆分：待解决问题跟随来源主题',
+    moved.projects.find((p) => p.id === 'p2').openQuestions.length === 1 &&
+      moved.projects.find((p) => p.id === 'p1').openQuestions.length === 0,
+  );
+  check('拆分：对话随节点迁移', moved.messages.length === 3);
+  check('拆分：节点总数不变', moved.nodes.length === baseSlice.nodes.length);
+  check('拆分：拒绝移动到同一项目', transferMod.moveSubtreeToProject(baseSlice, 'B', 'p1') === null);
+
+  const copied = transferMod.copySubtreeToProject(baseSlice, 'B', 'p2');
+  const copiedInTarget = copied.nodes.filter((n) => n.projectId === 'p2');
+  check('复制：目标项目新增整棵子树', copiedInTarget.length === 3);
+  check('复制：生成全新的节点 id', !copiedInTarget.some((n) => ['B', 'C', 'D'].includes(n.id)));
+  check('复制：原项目节点原封不动', copied.nodes.filter((n) => n.projectId === 'p1').length === 5);
+  check('复制：目标项目内部连线重建', copied.edges.filter((e) => e.projectId === 'p2').length === 2);
+  check('复制：对话一并复制', copied.messages.length === baseSlice.messages.length + 2);
+  check(
+    '复制：原项目待解决问题不受影响',
+    copied.projects.find((p) => p.id === 'p1').openQuestions.length === 1,
+  );
+  check('复制：拒绝复制到同一项目', transferMod.copySubtreeToProject(baseSlice, 'B', 'p1') === null);
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

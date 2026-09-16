@@ -80,6 +80,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand。
 - **V0.6 公开测试加固**（进行中）
   - V0.6.0 ✅ 每日自动备份（`backup.yml`，需配 `SUPABASE_DB_URL` Secret）/ 应用内反馈入口（带诊断信息）/
     容量保护（`schema.sql` 触发器：20 项目 / 20MB / 单项目 4MB）/ 手机侧栏长按菜单修复
+  - V0.6.1 ✅ 卡片可拆分 / 复制到另一个项目（连同全部子分支、对话与相关待解决问题）
   - 待办 ⏳ 同步冲突提示 / 自助删除账号 / 用量提示
 
 ## 安全规则

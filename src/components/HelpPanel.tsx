@@ -109,6 +109,13 @@ export function HelpPanel() {
         <Row label="收藏">把重要主题钉在左侧「已收藏」区。</Row>
         <Row label="复制链接">得到一个只指向这个主题的网址。</Row>
         <Row label="导出为 Markdown">把这张卡片连同它下面所有子分支导出成一篇文章。</Row>
+        <Row label="拆分到另一个项目">
+          把这张卡片连同它下面所有子分支、对话<strong>移动</strong>到另一个项目，并从当前项目移除；
+          点击后会出现项目选择界面。误操作可用 <Key>Ctrl + Z</Key> 撤销。
+        </Row>
+        <Row label="复制到另一个项目">
+          把这张卡片连同它下面所有子分支、对话<strong>复制</strong>到另一个项目，当前项目保持不变。
+        </Row>
         <Row label="创建子分支">直接在当前卡片下新建一个子主题，并进入它开始对话。</Row>
         <Row label="折叠子分支">本卡片保留，暂时收起它下面的所有后代。</Row>
         <Row label="隐藏 / 显示子分支">

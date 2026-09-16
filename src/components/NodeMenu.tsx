@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
+import type { Project } from '../types';
 import { MenuItem } from './Popover';
 import { buildNodeUrl, copyText } from '../lib/link';
 import { downloadMarkdown, exportBranchMarkdown } from '../lib/branchExport';
+import { getDescendantIds } from '../lib/tree';
 import {
   IconBranch,
   IconChevronDown,
   IconChevronRight,
+  IconCopy,
   IconDownload,
   IconEdit,
   IconEye,
   IconEyeOff,
+  IconFolder,
   IconLink,
   IconPin,
   IconPlus,
@@ -18,7 +22,7 @@ import {
   IconTrash,
 } from './icons';
 
-type Mode = 'menu' | 'rename' | 'questions';
+type Mode = 'menu' | 'rename' | 'questions' | 'project';
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max));
@@ -30,6 +34,7 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   const nodeMenuAnchor = useStore((s) => s.nodeMenuAnchor);
   const nodes = useStore((s) => s.nodes);
   const messages = useStore((s) => s.messages);
+  const projects = useStore((s) => s.projects);
   const openNodeMenu = useStore((s) => s.openNodeMenu);
   const togglePin = useStore((s) => s.togglePin);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
@@ -42,15 +47,20 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   const createChildBranch = useStore((s) => s.createChildBranch);
   const deleteChildren = useStore((s) => s.deleteChildren);
   const focusNodeAt = useStore((s) => s.focusNodeAt);
+  const moveNodeToProject = useStore((s) => s.moveNodeToProject);
+  const copyNodeToProject = useStore((s) => s.copyNodeToProject);
 
   const [mode, setMode] = useState<Mode>('menu');
   const [draft, setDraft] = useState('');
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [transfer, setTransfer] = useState<'move' | 'copy'>('move');
 
   const node = nodes.find((n) => n.id === nodeMenuId);
   const childNodes = nodes.filter((n) => n.parentId === nodeMenuId);
   const hasChildren = childNodes.length > 0;
   const someChildHidden = childNodes.some((n) => n.hidden);
+  const otherProjects = projects.filter((p) => p.id !== node?.projectId);
+  const descendantCount = node ? getDescendantIds(nodes, node.id).size : 0;
 
   useEffect(() => {
     if (!nodeMenuId) return;
@@ -70,6 +80,7 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setMode('menu');
     setDraft('');
+    setTransfer('move');
   }, [nodeMenuId]);
 
   useEffect(() => {
@@ -91,6 +102,21 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
 
   const saveRename = () => {
     if (draft.trim()) renameNode(node.id, draft);
+    close();
+  };
+
+  const pickProject = (target: Project) => {
+    const ok =
+      transfer === 'move'
+        ? moveNodeToProject(node.id, target.id)
+        : copyNodeToProject(node.id, target.id);
+    if (ok) {
+      alert(
+        transfer === 'move'
+          ? `已把「${node.title}」及其子分支移动到「${target.title}」。`
+          : `已把「${node.title}」及其子分支复制到「${target.title}」。`,
+      );
+    }
     close();
   };
 
@@ -186,6 +212,61 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      {mode === 'project' && (
+        <div>
+          <button
+            className="mb-1 flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-[11px]"
+            style={{ color: 'var(--faint)' }}
+            onClick={() => setMode('menu')}
+          >
+            ‹ 返回
+          </button>
+          <div
+            className="px-2 pb-1 text-[10px] tracking-widest uppercase"
+            style={{ color: 'var(--faint)' }}
+          >
+            {transfer === 'move' ? '拆分到另一个项目' : '复制到另一个项目'}
+          </div>
+          <p className="px-2 pb-2 text-[11px] leading-relaxed" style={{ color: 'var(--muted)' }}>
+            {transfer === 'move'
+              ? `把「${node.title}」及其 ${descendantCount} 个子分支移动到所选项目，并从当前项目移除。`
+              : `把「${node.title}」及其 ${descendantCount} 个子分支复制到所选项目，当前项目保持不变。`}
+          </p>
+
+          {otherProjects.length === 0 && (
+            <div
+              className="px-2 py-2 text-[12px] leading-relaxed"
+              style={{ color: 'var(--muted)' }}
+            >
+              还没有其它项目。请先在顶部「项目」菜单里新建一个项目。
+            </div>
+          )}
+
+          {otherProjects.map((p) => (
+            <button
+              key={p.id}
+              className="mb-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background =
+                  'color-mix(in srgb, var(--text) 7%, transparent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+              onClick={() => pickProject(p)}
+            >
+              <IconFolder width={14} height={14} className="shrink-0" />
+              <span
+                className="min-w-0 flex-1 truncate text-[12.5px]"
+                style={{ color: 'var(--text)' }}
+              >
+                {p.title}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {mode === 'menu' && (
         <div>
           <MenuItem
@@ -249,6 +330,26 @@ export function NodeMenu({ onClose }: { onClose: () => void }) {
           >
             <IconDownload width={14} height={14} />
             <span className="flex-1">导出为 Markdown</span>
+          </MenuItem>
+
+          <MenuItem
+            onClick={() => {
+              setTransfer('move');
+              setMode('project');
+            }}
+          >
+            <IconFolder width={14} height={14} />
+            <span className="flex-1">拆分到另一个项目</span>
+          </MenuItem>
+
+          <MenuItem
+            onClick={() => {
+              setTransfer('copy');
+              setMode('project');
+            }}
+          >
+            <IconCopy width={14} height={14} />
+            <span className="flex-1">复制到另一个项目</span>
           </MenuItem>
 
           <div className="my-1" style={{ borderTop: '1px solid var(--border)' }} />

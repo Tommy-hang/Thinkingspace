@@ -59,6 +59,7 @@ import {
   type Secrets,
 } from '../lib/storage';
 import { parseBundle } from '../lib/exportImport';
+import { copySubtreeToProject, moveSubtreeToProject } from '../lib/projectTransfer';
 
 interface UIState {
   activeProjectId: string | null;
@@ -128,6 +129,8 @@ interface Actions {
   removeOpenQuestion: (questionId: string) => void;
   createChildBranch: (parentId: string) => string;
   deleteChildren: (parentId: string) => void;
+  moveNodeToProject: (nodeId: string, targetProjectId: string) => boolean;
+  copyNodeToProject: (nodeId: string, targetProjectId: string) => boolean;
   hideNode: (id: string) => void;
   hideChildren: (id: string) => void;
   unhideChildren: (id: string) => void;
@@ -568,6 +571,46 @@ export const useStore = create<StoreState>((set, get) => ({
           s.focusedNodeId && doomed.has(s.focusedNodeId) ? null : s.focusedNodeId,
       };
     });
+  },
+
+  /** 把一张卡片及其所有子分支「移动」到另一个项目（从当前项目移除） */
+  moveNodeToProject: (nodeId, targetProjectId) => {
+    const s = get();
+    const next = moveSubtreeToProject(
+      { projects: s.projects, nodes: s.nodes, edges: s.edges, messages: s.messages },
+      nodeId,
+      targetProjectId,
+    );
+    if (!next) return false;
+    pushHistory();
+    set({
+      projects: next.projects,
+      nodes: next.nodes,
+      edges: next.edges,
+      messages: next.messages,
+      selectedNodeId: null,
+      focusedNodeId: null,
+    });
+    return true;
+  },
+
+  /** 把一张卡片及其所有子分支「复制」到另一个项目（当前项目不变） */
+  copyNodeToProject: (nodeId, targetProjectId) => {
+    const s = get();
+    const next = copySubtreeToProject(
+      { projects: s.projects, nodes: s.nodes, edges: s.edges, messages: s.messages },
+      nodeId,
+      targetProjectId,
+    );
+    if (!next) return false;
+    pushHistory();
+    set({
+      projects: next.projects,
+      nodes: next.nodes,
+      edges: next.edges,
+      messages: next.messages,
+    });
+    return true;
   },
 
   updateNode: (id, patch) => {
