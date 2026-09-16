@@ -290,6 +290,9 @@ export function Onboarding() {
                 <Good>只发与当前主题真正相关的内容</Good>
                 <Good>沿树结构取上下文，不读无关分支</Good>
                 <Good>锚点让模型精确知道你在问哪一句</Good>
+                <Good>
+                  每条回答下方有<strong>「上下文透镜」</strong>，可以亲眼看到 AI 这次用了哪些内容
+                </Good>
               </Card>
 
               <div
@@ -333,10 +336,14 @@ export function Onboarding() {
                   收敛
                 </div>
                 <Good>
-                  <strong>当前理解</strong>：每个主题由 AI 总结出的结论性概述
+                  <strong>当前理解</strong>：每个主题由 AI 总结出的结论性概述；
+                  更新时先看 <strong>+/− 差异</strong>，你确认后才生效
                 </Good>
                 <Good>
                   <strong>综合理解</strong>：把多个子分支的探索，收敛成父主题更高层的理解
+                </Good>
+                <Good>
+                  <strong>综合节点</strong>：多选几个主题，收敛成一段统一认识，并记下尚未解决的矛盾
                 </Good>
                 <Good>
                   <strong>知识地图</strong>：由全部卡片的「当前理解」生成整个项目的知识点思维导图，可导出 PDF
@@ -353,6 +360,9 @@ export function Onboarding() {
                 <Good>最近浏览 · 收藏 · 全局搜索（Ctrl+K）</Good>
                 <Good>每个主题有独立链接，可复制、可收藏</Good>
                 <Good>选中深层主题时，祖先链会被高亮，一眼看清来路</Good>
+                <Good>
+                  <strong>思考回放</strong>：拖动时间轴，回看这棵树是怎么一步步长出来的
+                </Good>
               </Card>
             </div>
           )}

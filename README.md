@@ -2,7 +2,7 @@
 
 > 把 AI 对话从一条时间线，变成一个可以探索的思维空间。
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.3**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.4**
 
 支持桌面与手机浏览器。
 
