@@ -566,6 +566,128 @@ try {
   check('当前理解：不再硬切半句话', titleMod.localSummary(longAnswer, 20).endsWith('。'));
   check('当前理解：默认长度已放宽', titleMod.localSummary('啊'.repeat(200)).length === 200);
 
+  // --- Behavior Profiles（V0.6.14）---
+  const behaviorMod = await server.ssrLoadModule('/src/lib/behavior.ts');
+  const BP = behaviorMod.DEFAULT_BEHAVIOR_PROFILES;
+  check('行为：内置 Profile 齐全', BP.length === 7);
+  check('行为：默认 Profile 不产生提示词', behaviorMod.buildBehaviorPrompt(BP[0]) === '');
+  const explorerPrompt = behaviorMod.buildBehaviorPrompt(
+    behaviorMod.findBehavior(BP, 'explorer'),
+  );
+  check('行为：Explorer 生成行为提示词', explorerPrompt.includes('探索'));
+  check('行为：未知 id 回退默认', behaviorMod.findBehavior(BP, 'nope').id === 'default');
+  check('行为：解析优先级 Message', behaviorMod.resolveBehaviorId('g', 'c', 'm') === 'm');
+  check('行为：解析优先级 Conversation', behaviorMod.resolveBehaviorId('g', 'c', undefined) === 'c');
+  check('行为：解析优先级 Global', behaviorMod.resolveBehaviorId('g', undefined, undefined) === 'g');
+  check(
+    '行为：解析兜底 System Default',
+    behaviorMod.resolveBehaviorId(undefined, undefined, undefined) === 'default',
+  );
+  check(
+    '行为：自定义说明进入提示词',
+    behaviorMod
+      .buildBehaviorPrompt({
+        id: 'x',
+        name: 'X',
+        dimensions: { focus: 2, length: 2, risk: 2, stance: 2, form: 2 },
+        instructions: '给出反例',
+      })
+      .includes('给出反例'),
+  );
+  check(
+    '行为：合并保留自定义 Profile',
+    behaviorMod.mergeBehaviorProfiles([
+      { id: 'my', name: '我的', dimensions: { focus: 2, length: 2, risk: 2, stance: 2, form: 2 } },
+    ]).length === 8,
+  );
+
+  // --- 价格层（V0.6.14）---
+  const pricingMod = await server.ssrLoadModule('/src/lib/pricing.ts');
+  const estKnown = pricingMod.estimateCost('deepseek-flash', {
+    inputTokens: 1000000,
+    outputTokens: 1000000,
+  });
+  check('价格：已知模型给出估算', estKnown.kind === 'estimated' && estKnown.usd > 0);
+  check(
+    '价格：未知模型不猜价格',
+    pricingMod.estimateCost('unknown-model-xyz', { inputTokens: 1000 }).kind === 'unavailable',
+  );
+  check(
+    '价格：本地模型算免费',
+    pricingMod.estimateCost('deepseek-flash', {}, { isLocal: true }).kind === 'free',
+  );
+  check(
+    '价格：自定义价格优先',
+    pricingMod.estimateCost(
+      'my-model',
+      { inputTokens: 1000000, outputTokens: 0 },
+      { customPrices: { 'my-model': { input: 1, output: 2 } } },
+    ).usd === 1,
+  );
+  check(
+    '价格：缓存命中不重复计费',
+    pricingMod.estimateCost('deepseek-flash', {
+      inputTokens: 1000000,
+      cachedInputTokens: 1000000,
+      outputTokens: 0,
+    }).usd < 0.28,
+  );
+
+  // --- 用量归一化（V0.6.14）---
+  const aiUsageMod = await server.ssrLoadModule('/src/lib/ai/usage.ts');
+  const u1 = aiUsageMod.normalizeUsage({
+    providerId: 'deepseek',
+    provider: 'DeepSeek',
+    model: 'deepseek-flash',
+    raw: { promptTokens: 1000, completionTokens: 500, cachedTokens: 200, reasoningTokens: 100 },
+    latencyMs: 1200,
+  });
+  check(
+    '用量：token 字段归一化',
+    u1.inputTokens === 1000 && u1.outputTokens === 500 && u1.cachedInputTokens === 200,
+  );
+  check('用量：合计自动补算', u1.totalTokens === 1500);
+  check('用量：给出估算费用', u1.costKind === 'estimated' && typeof u1.costUsd === 'number');
+  check('用量：保留延迟', u1.latencyMs === 1200);
+
+  const u2 = aiUsageMod.normalizeUsage({
+    providerId: 'mock',
+    provider: '离线演示',
+    model: 'mock',
+    raw: {},
+    isLocal: true,
+  });
+  check('用量：离线演示标记免费', u2.costKind === 'free' && u2.costUsd === 0);
+
+  const u3 = aiUsageMod.normalizeUsage({
+    providerId: 'custom',
+    provider: '自建',
+    model: 'whatever',
+    raw: { promptTokens: 10, completionTokens: 5 },
+  });
+  check(
+    '用量：未知价格标记 unavailable',
+    u3.costKind === 'unavailable' && u3.costUsd === undefined,
+  );
+  check(
+    '用量：token 格式化',
+    aiUsageMod.formatTokens(2800) === '2.8K' &&
+      aiUsageMod.formatTokens(150) === '150' &&
+      aiUsageMod.formatTokens(2500000) === '2.50M',
+  );
+  check(
+    '用量：费用区分估算 / 未知 / 免费',
+    aiUsageMod.formatCost({ costKind: 'estimated', costUsd: 0.007 }) === '≈$0.0070' &&
+      aiUsageMod.formatCost({ costKind: 'unavailable' }) === '价格未知' &&
+      aiUsageMod.formatCost({ costKind: 'free', costUsd: 0 }) === '免费',
+  );
+
+  const totals = aiUsageMod.sumUsage([{ usage: u1 }, { usage: u3 }]);
+  check('用量：会话累加调用数', totals.calls === 2);
+  check('用量：会话累加 token', totals.totalTokens === 1515);
+  check('用量：未知价格会让总额成为下界', totals.hasUnpriced === true);
+  check('用量：会话摘要文案', aiUsageMod.formatTotalsSummary(totals).includes('≥$'));
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

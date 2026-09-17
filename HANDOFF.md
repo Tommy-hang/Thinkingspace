@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.13**
+> 最后更新：2026-09-16 · 当前版本 **V0.6.14**
 
 ---
 
@@ -248,7 +248,25 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - 提示词明确要求「每句话都要说完整，不要出现半截话」：Topic 理解、综合理解、综合节点结论
   - 放宽输入上限：digest 6000→12000、insight 6000→12000、synthesis 8000→16000、
     knowledgeMap 14000→20000；`localSummary` 90→260、`firstSentence` 60→90
-  - 冒烟测试 116→123 项（新增 7 项句子截断测试）要求
+  - 冒烟测试 116→123 项（新增 7 项句子截断测试）
+- **V0.6.14**：模型行为可控 + AI 用量透明（架构级升级）
+  - **Behavior Profile**（`src/lib/behavior.ts`）：Profile = 5 个**行为维度**(0~4) + 自由说明；
+    提示词由维度**声明式**生成，以后加维度只改 `BEHAVIOR_DIMENSIONS` 一处
+    - 内置 7 个：default / explorer / engineer / scholar / critic / teacher / creator
+    - **三级作用域**：`Settings.behavior.activeProfileId`（全局）→ `TopicNode.behaviorId`（会话）
+      → `Message.behaviorId`（单条，UI 存 `messageBehaviorId`，发送后自动清空）
+    - 预留 `BehaviorProfile.compute`（quick/balanced/deep），本版本只存不用
+  - **统一 Usage**（`src/lib/ai/usage.ts`）：`Provider Adapter → RawUsage → normalizeUsage → AiUsage`
+    - Provider 差异只允许出现在 `openaiCompatible.ts` 的 `parseUsage()`；
+      `stream_options:{include_usage:true}`，遇 400/422 自动去掉重试（兼容自建端点）
+    - 只有**调用成功**才记录 usage；失败 / 中断不产生虚假账单
+  - **价格层**（`src/lib/pricing.ts`）：单价只在这里出现；`estimateCost` 区分
+    `exact / estimated / free / unavailable`，未知模型**绝不返回 0**
+  - **UI**：模型选择器内合入「行为倾向」选择；输入区有 Message Override 入口；
+    每条回答下方 `UsageBadge`（默认一行，可展开明细）；会话顶部累计用量；
+    回答动作里新增「换个视角」（`rethink`，会计为一次新调用）
+  - 设置面板新增「行为倾向」「用量与费用」两节（自定义 Profile / 自定义模型价格 / 显示开关）
+  - 冒烟测试 123→150 项要求
 
 ---
 
@@ -280,6 +298,10 @@ src/
     diff.ts                   句子级差异（LCS），用于「当前理解」版本确认
     replay.ts                 思考回放事件流（纯函数，只用已有时间戳推导）
     markdown.ts               把模型输出的 \[..\] / \(..\) 归一成 $ / $$（修复公式不渲染）
+    text.ts                   在句子边界截断（clipAtSentence），避免半截话
+    behavior.ts               ⭐ Behavior Profile：维度定义 / 默认 Profile / 提示词生成 / 三级解析
+    pricing.ts                ⭐ 模型价格层：单价表 + estimateCost（exact/estimated/free/unavailable）
+    ai/usage.ts               ⭐ 用量归一化：RawUsage → AiUsage、格式化、会话累加
     storage.ts                ⭐ 本地持久化 + **数据迁移唯一入口**
     device.ts                 触屏/窄屏检测
     link.ts                   主题直链（hash 路由）+ 复制
@@ -389,9 +411,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.13
+版本         V0.6.14
 最新提交     （见 git log -1）
-分支         main 与 v0.6.13 已同步
+分支         main 与 v0.6.14 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

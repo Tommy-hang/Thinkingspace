@@ -65,4 +65,7 @@ export async function streamMock(options: StreamChatOptions): Promise<void> {
     options.onDelta(ch);
     await delay(6);
   }
+
+  // 离线演示不产生真实调用：明确上报「无 token / 免费」，而不是让 UI 以为价格未知
+  options.onUsage?.({});
 }

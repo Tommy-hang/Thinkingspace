@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type {
+  BehaviorSettings,
   GraphEdge,
   Message,
   OpenQuestion,
@@ -15,6 +16,11 @@ import type {
   ThinkingSettings,
   TopicNode,
 } from '../types';
+import {
+  DEFAULT_BEHAVIOR_ID,
+  DEFAULT_BEHAVIOR_PROFILES,
+  mergeBehaviorProfiles,
+} from './behavior';
 import { uid } from './id';
 
 export const DATA_KEY = 'thinkingspace.data.v1';
@@ -146,6 +152,12 @@ export const DEFAULT_REASONING: ReasoningSettings = {
   suggestBranches: true,
 };
 
+export const DEFAULT_BEHAVIOR_SETTINGS: BehaviorSettings = {
+  activeProfileId: DEFAULT_BEHAVIOR_ID,
+  profiles: DEFAULT_BEHAVIOR_PROFILES,
+  showUsage: true,
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   activeProviderId: 'mock',
   providers: DEFAULT_PROVIDERS,
@@ -159,6 +171,7 @@ export const DEFAULT_SETTINGS: Settings = {
   thinking: DEFAULT_THINKING,
   search: DEFAULT_SEARCH_SETTINGS,
   reasoning: DEFAULT_REASONING,
+  behavior: DEFAULT_BEHAVIOR_SETTINGS,
 };
 
 export type Secrets = Record<string, string>;
@@ -320,6 +333,11 @@ export function loadData(): PersistedData {
         ...DEFAULT_SETTINGS.search,
         ...parsed.settings?.search,
         providers: mergeSearchProviders(parsed.settings?.search?.providers),
+      },
+      behavior: {
+        ...DEFAULT_BEHAVIOR_SETTINGS,
+        ...parsed.settings?.behavior,
+        profiles: mergeBehaviorProfiles(parsed.settings?.behavior?.profiles),
       },
     };
 

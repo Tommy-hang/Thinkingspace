@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import type {
+  BehaviorProfile,
   BranchAnchor,
   BranchIntent,
   BranchSuggestion,
@@ -11,6 +12,7 @@ import type {
   GraphEdge,
   HistorySnapshot,
   Message,
+  ModelPrice,
   NodeStatus,
   PersistedData,
   Project,
@@ -24,6 +26,8 @@ import type {
 import { uid } from '../lib/id';
 import { buildContext } from '../lib/ai/contextBuilder';
 import { runChat } from '../lib/ai';
+import { normalizeUsage, type RawUsage } from '../lib/ai/usage';
+import { findBehavior, resolveBehaviorId } from '../lib/behavior';
 import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
 import { getVisibleNodes } from '../lib/tree';
@@ -81,6 +85,11 @@ interface UIState {
   nodeMenuAnchor: { x: number; y: number } | null;
   /** 打开聚焦视图后需要滚动定位到的消息 */
   focusMessageId: string | null;
+  /**
+   * Message Override：只作用于「下一条消息」的临时 Behavior Profile。
+   * 发送后自动清除，回到当前会话（Conversation）的 Profile。
+   */
+  messageBehaviorId: string | null;
   helpOpen: boolean;
   knowledgeOpen: boolean;
   replayOpen: boolean;
@@ -104,6 +113,17 @@ interface UIState {
 interface HistoryState {
   past: HistorySnapshot[];
   future: HistorySnapshot[];
+}
+
+/** `_generate` 的附加参数（避免参数列表越来越长） */
+export interface GenerateOptions {
+  /** 是否同时插入一条 user 消息（regenerate / rethink 时为 false） */
+  addUserMessage?: boolean;
+  mentions?: string[];
+  /** Message Override：只影响这一次调用 */
+  behaviorId?: string;
+  /** 「换个视角重新思考」：记录它基于哪条回答 */
+  rethinkOf?: string;
 }
 
 interface Actions {
@@ -160,13 +180,24 @@ interface Actions {
   sendMessage: (nodeId: string, text: string, mentions?: string[]) => Promise<void>;
   regenerate: (nodeId: string) => Promise<void>;
   editUserMessage: (nodeId: string, messageId: string, content: string) => Promise<void>;
-  _generate: (
-    nodeId: string,
-    question: string,
-    addUserMessage: boolean,
-    mentions?: string[],
-  ) => Promise<void>;
+  /** 换一个 Behavior Profile，从另一个视角重新审视同一条回答 */
+  rethink: (nodeId: string, messageId: string, behaviorId: string) => Promise<void>;
+  _generate: (nodeId: string, question: string, options?: GenerateOptions) => Promise<void>;
   stopStreaming: (nodeId: string) => void;
+
+  /* ---- Behavior Profiles ---- */
+  /** Global：新会话的默认行为 */
+  setActiveBehavior: (id: string) => void;
+  /** Conversation：只覆盖当前主题（传 null 表示继承全局） */
+  setNodeBehavior: (nodeId: string, id: string | null) => void;
+  /** Message Override：只作用于下一条消息 */
+  setMessageBehavior: (id: string | null) => void;
+  addBehavior: (profile: Omit<BehaviorProfile, 'id'>) => string;
+  updateBehavior: (id: string, patch: Partial<BehaviorProfile>) => void;
+  removeBehavior: (id: string) => void;
+  setShowUsage: (show: boolean) => void;
+  setCustomPrice: (model: string, price: ModelPrice) => void;
+  removeCustomPrice: (model: string) => void;
 
   selectNode: (id: string | null) => void;
   focusNode: (id: string | null) => void;
@@ -413,6 +444,7 @@ export const useStore = create<StoreState>((set, get) => ({
   nodeMenuId: null,
   nodeMenuAnchor: null,
   focusMessageId: null,
+  messageBehaviorId: null,
   helpOpen: false,
   knowledgeOpen: false,
   replayOpen: false,
@@ -1162,7 +1194,14 @@ export const useStore = create<StoreState>((set, get) => ({
     const question = text.trim();
     if (!question) return;
     pushHistory();
-    await get()._generate(nodeId, question, true, mentions);
+    // Message Override 只作用于这一次调用，发送后立刻回到 Conversation Profile
+    const override = get().messageBehaviorId ?? undefined;
+    if (override) set({ messageBehaviorId: null });
+    await get()._generate(nodeId, question, {
+      addUserMessage: true,
+      mentions,
+      behaviorId: override,
+    });
   },
 
   regenerate: async (nodeId) => {
@@ -1170,6 +1209,10 @@ export const useStore = create<StoreState>((set, get) => ({
     const own = s.messages.filter((m) => m.nodeId === nodeId);
     const lastUser = [...own].reverse().find((m) => m.role === 'user');
     if (!lastUser) return;
+
+    // 沿用原回答所用的 Profile，保证「重新生成」语义一致
+    const lastAssistant = [...own].reverse().find((m) => m.role === 'assistant');
+    const behaviorId = lastAssistant?.behaviorId;
 
     const keep = new Set<string>();
     for (const m of own) {
@@ -1180,7 +1223,10 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => ({
       messages: state.messages.filter((m) => m.nodeId !== nodeId || keep.has(m.id)),
     }));
-    await get()._generate(nodeId, lastUser.content, false, lastUser.mentions);
+    await get()._generate(nodeId, lastUser.content, {
+      mentions: lastUser.mentions,
+      behaviorId,
+    });
   },
 
   editUserMessage: async (nodeId, messageId, content) => {
@@ -1204,10 +1250,29 @@ export const useStore = create<StoreState>((set, get) => ({
         .filter((m) => m.nodeId !== nodeId || keep.has(m.id))
         .map((m) => (m.id === messageId ? { ...m, content: text } : m)),
     }));
-    await get()._generate(nodeId, text, false);
+    await get()._generate(nodeId, text, {});
   },
 
-  _generate: async (nodeId, question, addUserMessage, mentions) => {
+  /** 换一个 Behavior Profile，从另一个视角重新审视同一条回答（会计为一次新的 API 调用） */
+  rethink: async (nodeId, messageId, behaviorId) => {
+    const s = get();
+    const own = s.messages.filter((m) => m.nodeId === nodeId);
+    const idx = own.findIndex((m) => m.id === messageId && m.role === 'assistant');
+    if (idx < 0) return;
+
+    const question = [...own.slice(0, idx)].reverse().find((m) => m.role === 'user');
+    if (!question) return;
+
+    pushHistory();
+    await get()._generate(nodeId, question.content, {
+      behaviorId,
+      rethinkOf: messageId,
+      mentions: question.mentions,
+    });
+  },
+
+  _generate: async (nodeId, question, options) => {
+    const opts = options ?? {};
     const state = get();
     const node = state.nodes.find((n) => n.id === nodeId);
     const project = state.projects.find((p) => p.id === node?.projectId);
@@ -1221,15 +1286,24 @@ export const useStore = create<StoreState>((set, get) => ({
       return;
     }
 
+    // 三级作用域：Message Override → Conversation → Global → System Default
+    const behaviorSettings = state.settings.behavior;
+    const resolvedBehaviorId = resolveBehaviorId(
+      behaviorSettings.activeProfileId,
+      node.behaviorId,
+      opts.behaviorId,
+    );
+    const behavior = findBehavior(behaviorSettings.profiles, resolvedBehaviorId);
+
     const now = Date.now();
     const isFirstTurn = !state.messages.some((m) => m.nodeId === nodeId);
-    const userMessage: Message | null = addUserMessage
+    const userMessage: Message | null = opts.addUserMessage
       ? {
           id: uid('m_'),
           nodeId,
           role: 'user',
           content: question,
-          mentions: mentions && mentions.length > 0 ? mentions : undefined,
+          mentions: opts.mentions && opts.mentions.length > 0 ? opts.mentions : undefined,
           createdAt: now,
         }
       : null;
@@ -1240,6 +1314,8 @@ export const useStore = create<StoreState>((set, get) => ({
       content: '',
       createdAt: now,
       pending: true,
+      behaviorId: behavior.id,
+      rethinkOf: opts.rethinkOf,
     };
 
     set((s) => ({
@@ -1302,7 +1378,8 @@ export const useStore = create<StoreState>((set, get) => ({
       question,
       settings: state.settings.context,
       searchSources: sources,
-      mentionedNodeIds: mentions,
+      mentionedNodeIds: opts.mentions,
+      behavior,
     });
 
     // 上下文透镜：把「本次用了哪些内容」挂在回答上，供用户展开查看
@@ -1331,6 +1408,9 @@ export const useStore = create<StoreState>((set, get) => ({
         ),
       }));
 
+    let rawUsage: RawUsage | undefined;
+    const startedAt = Date.now();
+
     try {
       await runChat({
         provider,
@@ -1340,10 +1420,25 @@ export const useStore = create<StoreState>((set, get) => ({
         onDelta: append,
         onReasoning: appendReasoning,
         thinking: state.settings.thinking,
+        onUsage: (raw) => {
+          rawUsage = raw;
+        },
       });
+
+      // 只在调用成功时记录用量：失败 / 中断不会产生虚假账单
+      const usage = normalizeUsage({
+        providerId: provider.id,
+        provider: provider.displayName,
+        model: provider.model,
+        raw: rawUsage,
+        latencyMs: Date.now() - startedAt,
+        isLocal: provider.kind === 'mock',
+        customPrices: behaviorSettings.customPrices,
+      });
+
       set((s) => ({
         messages: s.messages.map((m) =>
-          m.id === assistantMessage.id ? { ...m, pending: false } : m,
+          m.id === assistantMessage.id ? { ...m, pending: false, usage } : m,
         ),
         streamingNodeId: s.streamingNodeId === nodeId ? null : s.streamingNodeId,
       }));
@@ -1747,6 +1842,95 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({
       settings: { ...s.settings, search: { ...s.settings.search, maxResults: n } },
     })),
+
+  /* ---- Behavior Profiles（Global / Conversation / Message 三级） ---- */
+
+  setActiveBehavior: (id) =>
+    set((s) => ({
+      settings: { ...s.settings, behavior: { ...s.settings.behavior, activeProfileId: id } },
+    })),
+
+  setNodeBehavior: (nodeId, id) => {
+    pushHistory(`behavior:${nodeId}`);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === nodeId ? { ...n, behaviorId: id ?? undefined, updatedAt: Date.now() } : n,
+      ),
+    }));
+  },
+
+  setMessageBehavior: (id) => set({ messageBehaviorId: id }),
+
+  addBehavior: (profile) => {
+    const id = uid('bp_');
+    const now = Date.now();
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        behavior: {
+          ...s.settings.behavior,
+          profiles: [
+            ...s.settings.behavior.profiles,
+            { ...profile, id, createdAt: now, updatedAt: now },
+          ],
+        },
+      },
+    }));
+    return id;
+  },
+
+  updateBehavior: (id, patch) =>
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        behavior: {
+          ...s.settings.behavior,
+          profiles: s.settings.behavior.profiles.map((p) =>
+            p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p,
+          ),
+        },
+      },
+    })),
+
+  removeBehavior: (id) =>
+    set((s) => {
+      const profiles = s.settings.behavior.profiles.filter((p) => p.id !== id);
+      const activeProfileId =
+        s.settings.behavior.activeProfileId === id
+          ? (profiles[0]?.id ?? 'default')
+          : s.settings.behavior.activeProfileId;
+      return {
+        settings: {
+          ...s.settings,
+          behavior: { ...s.settings.behavior, profiles, activeProfileId },
+        },
+      };
+    }),
+
+  setShowUsage: (show) =>
+    set((s) => ({
+      settings: { ...s.settings, behavior: { ...s.settings.behavior, showUsage: show } },
+    })),
+
+  setCustomPrice: (model, price) =>
+    set((s) => ({
+      settings: {
+        ...s.settings,
+        behavior: {
+          ...s.settings.behavior,
+          customPrices: { ...(s.settings.behavior.customPrices ?? {}), [model]: price },
+        },
+      },
+    })),
+
+  removeCustomPrice: (model) =>
+    set((s) => {
+      const next = { ...(s.settings.behavior.customPrices ?? {}) };
+      delete next[model];
+      return {
+        settings: { ...s.settings, behavior: { ...s.settings.behavior, customPrices: next } },
+      };
+    }),
 
   importFromText: (text) => {
     const imported = parseBundle(text);

@@ -99,6 +99,7 @@ export type ContextPartKind =
   | 'search'
   | 'mention'
   | 'conversation'
+  | 'behavior'
   | 'question';
 
 export interface ContextPart {
@@ -107,6 +108,8 @@ export interface ContextPart {
   label: string;
   /** 具体内容，如主题名 / 轮数 / 锚点文字 */
   detail?: string;
+  /** 这部分大约占多少字（用于上下文占用统计） */
+  chars?: number;
 }
 
 export interface ContextManifest {
@@ -227,6 +230,8 @@ export interface TopicNode {
   insightUpdatedAt?: number;
   /** 综合节点：由多个主题收敛而成 */
   synthesis?: SynthesisMeta;
+  /** 本会话（这张卡片）的 Behavior Profile；不设置则继承全局 */
+  behaviorId?: string;
   /** AI 建议的探索方向（挂在最后一条回答上） */
   suggestions?: BranchSuggestion[];
   suggestionsFor?: string;
@@ -253,6 +258,12 @@ export interface Message {
   mentions?: string[];
   /** 本次回答实际使用了哪些上下文（上下文透镜） */
   contextManifest?: ContextManifest;
+  /** 本次回答最终采用的 Behavior Profile（三级作用域解析后的结果） */
+  behaviorId?: string;
+  /** 本次 API 调用的归一化用量 */
+  usage?: AiUsage;
+  /** 若这是「换个视角重新思考」的产物，记录它基于哪条回答 */
+  rethinkOf?: string;
   createdAt: number;
   /** true while the model is still streaming into this message */
   pending?: boolean;
@@ -328,6 +339,89 @@ export interface ReasoningSettings {
   suggestBranches: boolean;
 }
 
+/* ============================ Behavior Profiles ============================ */
+
+/**
+ * 行为维度：0 = 左端，4 = 右端，2 = 中间。
+ * 用数字而不是枚举，是为了让 Profile 可以有「程度」，并且以后能直接扩展新维度。
+ */
+export interface BehaviorDimensions {
+  /** 聚焦 ↔ 发散 */
+  focus: number;
+  /** 简洁 ↔ 详尽 */
+  length: number;
+  /** 保守 ↔ 创意 */
+  risk: number;
+  /** 支持 ↔ 批判 */
+  stance: number;
+  /** 自由 ↔ 结构化 */
+  form: number;
+}
+
+export type BehaviorDimensionKey = keyof BehaviorDimensions;
+
+/**
+ * 计算预算倾向（**预留能力**，v0.6.14 只存不用）。
+ * 未来用于决定 reasoning effort / 输出长度 / 上下文策略 / 模型选择。
+ */
+export type ComputeBudget = 'quick' | 'balanced' | 'deep';
+
+export interface BehaviorProfile {
+  id: string;
+  name: string;
+  /** 一句话说明，用于界面提示 */
+  hint?: string;
+  /** 内置 Profile：不可删除、不可改名 */
+  builtin?: boolean;
+  dimensions: BehaviorDimensions;
+  /** 用户自己写的额外行为说明（会追加到系统提示词） */
+  instructions?: string;
+  /** 预留：计算预算倾向 */
+  compute?: ComputeBudget;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+/* ============================ AI Usage ============================ */
+
+/** 费用的可信程度：不伪造数据，不确定就说不确定 */
+export type UsageCostKind = 'exact' | 'estimated' | 'free' | 'unavailable';
+
+/** 归一化后的单次 API 调用用量（与具体 Provider 无关） */
+export interface AiUsage {
+  providerId: string;
+  provider: string;
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
+  totalTokens?: number;
+  costKind: UsageCostKind;
+  /** 美元 */
+  costUsd?: number;
+  latencyMs?: number;
+  at: number;
+}
+
+/** 每 100 万 token 的价格（美元） */
+export interface ModelPrice {
+  input: number;
+  output: number;
+  cachedInput?: number;
+  reasoning?: number;
+}
+
+export interface BehaviorSettings {
+  /** 全局默认 Profile（新会话使用） */
+  activeProfileId: string;
+  profiles: BehaviorProfile[];
+  /** 是否在回答下方显示用量（可关，默认开） */
+  showUsage: boolean;
+  /** 用户自定义的模型价格（键为模型名），优先于内置价格表 */
+  customPrices?: Record<string, ModelPrice>;
+}
+
 export interface Settings {
   activeProviderId: string;
   providers: ProviderConfig[];
@@ -336,6 +430,7 @@ export interface Settings {
   thinking: ThinkingSettings;
   search: SearchSettings;
   reasoning: ReasoningSettings;
+  behavior: BehaviorSettings;
 }
 
 export interface PersistedData {

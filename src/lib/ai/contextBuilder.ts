@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type {
+  BehaviorProfile,
   ContextManifest,
   ContextPart,
   ContextSettings,
@@ -10,6 +11,7 @@ import type {
   SearchSource,
   TopicNode,
 } from '../../types';
+import { buildBehaviorPrompt } from '../behavior';
 import { formatSourcesForPrompt } from '../search';
 import { clipAtSentence } from '../text';
 import { getAncestors } from '../tree';
@@ -42,6 +44,8 @@ export interface BuildContextInput {
   searchSources?: SearchSource[];
   /** 通过 @ 引用的其它主题，只发送它们的「当前理解」，不发送完整对话 */
   mentionedNodeIds?: string[];
+  /** 本次回答解析后的 Behavior Profile（三级作用域的结果） */
+  behavior?: BehaviorProfile;
 }
 
 export interface BuildContextResult {
@@ -68,9 +72,20 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
 
   const push = (message: ChatMessage, part: ContextPart) => {
     out.push(message);
-    parts.push(part);
+    parts.push({ ...part, chars: message.content.length });
     totalChars += message.content.length;
   };
+
+  // Behavior Profile：控制「如何思考」，与「用哪些内容」分开统计
+  if (input.behavior) {
+    const behaviorPrompt = buildBehaviorPrompt(input.behavior);
+    if (behaviorPrompt) {
+      push(
+        { role: 'system', content: behaviorPrompt },
+        { kind: 'behavior', label: '行为倾向', detail: input.behavior.name },
+      );
+    }
+  }
 
   if (settings.includeProjectSummary && project.summary) {
     push(
@@ -155,24 +170,32 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
 
   const own = messages.filter((m) => m.nodeId === nodeId && !m.error);
   const recent = own.slice(-maxTurns);
-  if (recent.length > 0) {
-    parts.push({
-      kind: 'conversation',
-      label: '本主题对话',
-      detail: `${Math.ceil(recent.length / 2)} 轮`,
-    });
-  }
+  let conversationChars = 0;
   recent.forEach((m) => {
     const message: ChatMessage = {
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     };
     out.push(message);
+    conversationChars += message.content.length;
     totalChars += message.content.length;
   });
+  if (recent.length > 0) {
+    parts.push({
+      kind: 'conversation',
+      label: '本主题对话',
+      detail: `${Math.ceil(recent.length / 2)} 轮`,
+      chars: conversationChars,
+    });
+  }
 
   out.push({ role: 'user', content: question });
-  parts.push({ kind: 'question', label: '当前问题', detail: clip(question, 36) });
+  parts.push({
+    kind: 'question',
+    label: '当前问题',
+    detail: clip(question, 36),
+    chars: question.length,
+  });
   totalChars += question.length;
 
   // 同一项目里、本次没有加入的主题（用于「× 其他无关主题未加入」）

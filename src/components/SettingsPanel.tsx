@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useStore } from '../store/store';
 import type { ThinkingEffort } from '../types';
 import { Modal } from './Modal';
+import { BehaviorSettings } from './BehaviorSettings';
 import { IconKey, IconPlus, IconTrash } from './icons';
 
 export function SettingsPanel() {
@@ -296,6 +297,8 @@ export function SettingsPanel() {
           </p>
         </div>
       </section>
+
+      <BehaviorSettings />
 
       <section className="mb-6">
         <h3 className="mb-2 text-[13px] font-semibold">思考辅助</h3>

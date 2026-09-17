@@ -12,9 +12,12 @@ import {
   type TopicNode,
 } from '../types';
 import { ancestorPath } from '../lib/ai/contextBuilder';
+import { findBehavior } from '../lib/behavior';
+import { formatTotalsSummary, sumUsage } from '../lib/ai/usage';
 import { Popover, MenuItem } from './Popover';
 import { Markdown } from './Markdown';
 import { ContextLens } from './ContextLens';
+import { UsageBadge } from './UsageBadge';
 import {
   IconBranch,
   IconCheck,
@@ -30,6 +33,7 @@ import {
   IconPlus,
   IconRefresh,
   IconSend,
+  IconSliders,
   IconSpark,
   IconStop,
   IconTrash,
@@ -374,6 +378,11 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const searchingNodeId = useStore((s) => s.searchingNodeId);
   const setThinking = useStore((s) => s.setThinking);
   const setSearchEnabled = useStore((s) => s.setSearchEnabled);
+  const behaviorSettings = useStore((s) => s.settings.behavior);
+  const messageBehaviorId = useStore((s) => s.messageBehaviorId);
+  const setNodeBehavior = useStore((s) => s.setNodeBehavior);
+  const setMessageBehavior = useStore((s) => s.setMessageBehavior);
+  const rethink = useStore((s) => s.rethink);
 
   const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>('enter');
   const [customModel, setCustomModel] = useState('');
@@ -407,6 +416,17 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   );
   const provider = settings.providers.find((p) => p.id === settings.activeProviderId);
   const streaming = streamingNodeId === nodeId;
+
+  // Behavior 三级作用域：Message Override → 本会话 → 全局
+  const conversationBehavior = findBehavior(
+    behaviorSettings.profiles,
+    node?.behaviorId ?? behaviorSettings.activeProfileId,
+  );
+  const nextBehavior = findBehavior(
+    behaviorSettings.profiles,
+    messageBehaviorId ?? node?.behaviorId ?? behaviorSettings.activeProfileId,
+  );
+  const sessionUsage = useMemo(() => sumUsage(nodeMessages), [nodeMessages]);
 
   const lastUserId = useMemo(() => {
     const users = nodeMessages.filter((m) => m.role === 'user');
@@ -737,6 +757,15 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
+            {behaviorSettings.showUsage && sessionUsage.calls > 0 && (
+              <span
+                className="hidden text-[11px] lg:inline"
+                style={{ color: 'var(--faint)' }}
+                title={`本会话累计 ${sessionUsage.calls} 次调用`}
+              >
+                {formatTotalsSummary(sessionUsage)}
+              </span>
+            )}
             <Popover
               align="right"
               width={200}
@@ -1230,6 +1259,8 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                   const canEdit = isUser && m.id === lastUserId && !streaming;
                   const canRegenerate =
                     !isUser && m.id === lastAssistantId && !m.pending && !streaming;
+                  const canRethink =
+                    !isUser && !m.pending && !streaming && m.content.trim().length > 0;
 
                   return (
                     <div
@@ -1300,6 +1331,12 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                         </div>
                       )}
 
+                      {!isEditing && !isUser && behaviorSettings.showUsage && m.usage && (
+                        <div style={{ width: 'min(760px, 92%)' }}>
+                          <UsageBadge usage={m.usage} />
+                        </div>
+                      )}
+
                       {!isEditing && (
                         <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
                           {canEdit && (
@@ -1319,6 +1356,61 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                               <IconRefresh width={12} height={12} />
                               重新生成
                             </button>
+                          )}
+                          {canRethink && (
+                            <Popover
+                              align="left"
+                              placement="top"
+                              width={240}
+                              button={
+                                <button
+                                  className="btn btn-ghost !px-2 !py-0.5 !text-[11px]"
+                                  title="换一个行为倾向，从另一个视角重新回答同一个问题"
+                                >
+                                  <IconSliders width={12} height={12} />
+                                  换个视角
+                                </button>
+                              }
+                            >
+                              {(close) => (
+                                <div className="ts-scroll max-h-[300px] overflow-y-auto">
+                                  <div
+                                    className="px-2.5 pt-2 pb-1 text-[10px] tracking-widest uppercase"
+                                    style={{ color: 'var(--faint)' }}
+                                  >
+                                    从哪个视角重新思考
+                                  </div>
+                                  {behaviorSettings.profiles.map((bp) => (
+                                    <MenuItem
+                                      key={bp.id}
+                                      onClick={() => {
+                                        close();
+                                        void rethink(nodeId, m.id, bp.id);
+                                      }}
+                                    >
+                                      <span
+                                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                        style={{
+                                          background:
+                                            bp.id === m.behaviorId
+                                              ? 'var(--accent)'
+                                              : 'var(--border-strong)',
+                                        }}
+                                      />
+                                      <span className="shrink-0">{bp.name}</span>
+                                      {bp.hint && (
+                                        <span
+                                          className="min-w-0 flex-1 truncate text-[10px]"
+                                          style={{ color: 'var(--faint)' }}
+                                        >
+                                          {bp.hint}
+                                        </span>
+                                      )}
+                                    </MenuItem>
+                                  ))}
+                                </div>
+                              )}
+                            </Popover>
                           )}
                           {m.content.trim().length > 0 && (
                             <button
@@ -1462,23 +1554,166 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
               <Popover
                 align="left"
                 placement="top"
+                width={250}
+                button={
+                  <button
+                    className="btn !px-2.5 !py-1 !text-[12px]"
+                    title="只影响下一条消息的行为倾向；发送后自动恢复"
+                    style={{
+                      border: `1px solid ${messageBehaviorId ? 'var(--accent)' : 'var(--border)'}`,
+                      background: messageBehaviorId
+                        ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                        : 'transparent',
+                      color: messageBehaviorId ? 'var(--accent)' : 'var(--muted)',
+                    }}
+                  >
+                    <IconSliders width={13} height={13} />
+                    行为：{nextBehavior.name}
+                    {messageBehaviorId && (
+                      <span
+                        className="shrink-0"
+                        title="取消临时行为"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMessageBehavior(null);
+                        }}
+                      >
+                        <IconX width={11} height={11} />
+                      </span>
+                    )}
+                  </button>
+                }
+              >
+                {(close) => (
+                  <div className="ts-scroll max-h-[320px] overflow-y-auto">
+                    <div
+                      className="px-2.5 pt-2 pb-1 text-[10px] tracking-widest uppercase"
+                      style={{ color: 'var(--faint)' }}
+                    >
+                      只影响下一条消息
+                    </div>
+                    <MenuItem
+                      onClick={() => {
+                        setMessageBehavior(null);
+                        close();
+                      }}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{
+                          background: messageBehaviorId
+                            ? 'var(--border-strong)'
+                            : 'var(--accent)',
+                        }}
+                      />
+                      <span className="flex-1">跟随会话（{conversationBehavior.name}）</span>
+                      {!messageBehaviorId && <IconCheck width={13} height={13} />}
+                    </MenuItem>
+                    {behaviorSettings.profiles.map((bp) => (
+                      <MenuItem
+                        key={bp.id}
+                        onClick={() => {
+                          setMessageBehavior(bp.id);
+                          close();
+                        }}
+                      >
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{
+                            background:
+                              messageBehaviorId === bp.id
+                                ? 'var(--accent)'
+                                : 'var(--border-strong)',
+                          }}
+                        />
+                        <span className="shrink-0">{bp.name}</span>
+                        {bp.hint && (
+                          <span
+                            className="min-w-0 flex-1 truncate text-[10px]"
+                            style={{ color: 'var(--faint)' }}
+                          >
+                            {bp.hint}
+                          </span>
+                        )}
+                        {messageBehaviorId === bp.id && <IconCheck width={13} height={13} />}
+                      </MenuItem>
+                    ))}
+                  </div>
+                )}
+              </Popover>
+
+              <Popover
+                align="left"
+                placement="top"
                 width={310}
                 button={
-                  <button className="btn btn-outline max-w-[190px] !px-2 !py-1 !text-[12px]">
+                  <button className="btn btn-outline max-w-[230px] !px-2 !py-1 !text-[12px]">
                     <span className="truncate" style={{ color: 'var(--muted)' }}>
                       <span className="hidden md:inline">
                         {provider?.displayName ?? '未配置'} ·{' '}
                       </span>
                       {provider?.model ?? '—'}
                     </span>
+                    <span className="shrink-0" style={{ color: 'var(--faint)' }}>
+                      ·
+                    </span>
+                    <span className="shrink-0" style={{ color: 'var(--accent)' }}>
+                      {conversationBehavior.name}
+                    </span>
                     {provider && provider.kind !== 'mock' && !secrets[provider.id] ? (
-                      <span style={{ color: '#dc2626' }}>未填 Key</span>
+                      <span className="shrink-0" style={{ color: '#dc2626' }}>
+                        未填 Key
+                      </span>
                     ) : null}
                   </button>
                 }
               >
                 {(close) => (
-                  <div className="ts-scroll max-h-[360px] overflow-y-auto">
+                  <div className="ts-scroll max-h-[420px] overflow-y-auto">
+                    <div
+                      className="px-2.5 pt-2 pb-1 text-[10px] tracking-widest uppercase"
+                      style={{ color: 'var(--faint)' }}
+                    >
+                      行为倾向 · 本会话
+                    </div>
+                    {behaviorSettings.profiles.map((bp) => {
+                      const active = bp.id === conversationBehavior.id;
+                      return (
+                        <MenuItem
+                          key={bp.id}
+                          onClick={() =>
+                            setNodeBehavior(
+                              nodeId,
+                              bp.id === behaviorSettings.activeProfileId ? null : bp.id,
+                            )
+                          }
+                        >
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{
+                              background: active ? 'var(--accent)' : 'var(--border-strong)',
+                            }}
+                          />
+                          <span className="shrink-0">{bp.name}</span>
+                          {bp.hint && (
+                            <span
+                              className="min-w-0 flex-1 truncate text-[10px]"
+                              style={{ color: 'var(--faint)' }}
+                            >
+                              {bp.hint}
+                            </span>
+                          )}
+                          {active && <IconCheck width={13} height={13} />}
+                        </MenuItem>
+                      );
+                    })}
+
+                    <div
+                      className="mt-1 px-2.5 pt-2 pb-1 text-[10px] tracking-widest uppercase"
+                      style={{ color: 'var(--faint)', borderTop: '1px solid var(--border)' }}
+                    >
+                      模型
+                    </div>
                     {settings.providers.map((p) => {
                       const presets: ModelPreset[] = [...(p.presetModels ?? [])];
                       if (!presets.some((m) => m.id === p.model)) {

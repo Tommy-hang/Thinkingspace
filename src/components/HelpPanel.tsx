@@ -277,6 +277,40 @@ export function HelpPanel() {
         <Row label="API Key">在 设置 里填写，只保存在你自己的浏览器中，不会被导出。</Row>
       </Section>
 
+      <Section title="模型行为（Behavior）">
+        <Row label="是什么">
+          控制模型<strong>如何思考</strong>，而不只是语气：思考范围、回答长度、结论取向、立场、组织形式。
+          内置 7 种倾向（默认 / 探索者 / 工程师 / 学者 / 批判者 / 老师 / 创作者）。
+        </Row>
+        <Row label="三级作用域">
+          <strong>全局默认</strong>（设置 → 行为倾向 → 设为默认）→ <strong>本会话</strong>
+          （输入框上方的模型菜单里选「行为倾向 · 本会话」）→ <strong>单条消息</strong>
+          （输入框上方的「行为：」按钮，只影响下一条，发送后自动恢复）。
+        </Row>
+        <Row label="自定义">
+          设置 → 行为倾向 → 新建自定义：调节五个维度滑块，再补一段自己的说明即可。
+        </Row>
+        <Row label="换个视角">
+          鼠标悬停任意一条回答 → 点「换个视角」，选另一种行为倾向，让 AI 从另一个角度重答同一个问题。
+          它会成为一条新回答，并计为一次新的调用。
+        </Row>
+      </Section>
+
+      <Section title="用量与费用">
+        <Row label="每条回答">
+          回答下方有一行很轻的用量（如 <strong>2.8K tokens · ≈$0.007</strong>），点「明细」可看
+          输入 / 输出 / 推理 / 缓存命中 / 合计 tokens、费用、模型、服务商与耗时。
+        </Row>
+        <Row label="会话累计">聚焦视图顶部会显示本会话的累计用量与调用次数。</Row>
+        <Row label="费用说明">
+          费用按「模型单价 × token 数」<strong>估算</strong>，用 ≈ 标注；
+          表里没有的模型会显示<strong>「价格未知」</strong>，不会当成 0。价格可在设置里覆盖。
+        </Row>
+        <Row label="不想看">
+          设置 → 行为倾向 → 用量与费用 → 关掉「显示 token 与费用」即可完全隐藏。
+        </Row>
+      </Section>
+
       <Section title="数据与备份">
         <Row label="自动保存">所有内容自动保存在当前浏览器里，无需手动保存。</Row>
         <Row label="导出">顶部下载图标 → 导出当前项目 / 全部项目，得到一个 .json 文件。</Row>

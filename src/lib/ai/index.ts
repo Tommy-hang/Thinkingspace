@@ -5,8 +5,10 @@ import type { ProviderConfig } from '../../types';
 import { streamMock } from './mock';
 import { streamOpenAICompatible } from './openaiCompatible';
 import type { ChatMessage, ThinkingOptions } from './types';
+import type { RawUsage } from './usage';
 
 export type { ChatMessage, ThinkingOptions } from './types';
+export type { RawUsage } from './usage';
 export { SYSTEM_PROMPT } from './types';
 
 export interface RunChatInput {
@@ -17,6 +19,7 @@ export interface RunChatInput {
   onDelta: (text: string) => void;
   onReasoning?: (text: string) => void;
   thinking?: ThinkingOptions;
+  onUsage?: (raw: RawUsage) => void;
 }
 
 export function requiresApiKey(provider: ProviderConfig): boolean {
@@ -25,7 +28,7 @@ export function requiresApiKey(provider: ProviderConfig): boolean {
 
 /** 一次性调用，把流式输出拼成完整字符串（用于生成标题等短任务） */
 export async function completeText(
-  input: Omit<RunChatInput, 'onDelta' | 'onReasoning'>,
+  input: Omit<RunChatInput, 'onDelta' | 'onReasoning' | 'onUsage'>,
 ): Promise<string> {
   let out = '';
   await runChat({
@@ -38,7 +41,7 @@ export async function completeText(
 }
 
 export async function runChat(input: RunChatInput): Promise<void> {
-  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking } = input;
+  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, onUsage } = input;
 
   if (requiresApiKey(provider) && !apiKey.trim()) {
     throw new Error(
@@ -46,7 +49,7 @@ export async function runChat(input: RunChatInput): Promise<void> {
     );
   }
 
-  const options = { provider, apiKey, messages, signal, onDelta, onReasoning, thinking };
+  const options = { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, onUsage };
 
   switch (provider.kind) {
     case 'mock':

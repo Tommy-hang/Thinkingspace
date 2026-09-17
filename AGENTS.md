@@ -60,6 +60,9 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - `src/lib/replay.ts` — 思考回放事件流（纯函数）
 - `src/lib/markdown.ts` — 公式分隔符归一（`\[..\]` / `\(..\)` → `$` / `$$`）
 - `src/lib/text.ts` — 在句子边界截断（`clipAtSentence`），避免生成文字出现半截话
+- `src/lib/behavior.ts` — ⭐ Behavior Profile（模型行为配置：维度 / 提示词生成 / 三级解析）
+- `src/lib/pricing.ts` — ⭐ 模型价格层（单价表 + `estimateCost`，不猜未知模型价格）
+- `src/lib/ai/usage.ts` — ⭐ AI 用量归一化（Provider 差异只能出现在适配器里）
 - `src/assets/` — 图片资源（宣传海报，已压缩；原图在根目录 `宣传海报/`）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
@@ -105,6 +108,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.6.12 ✅ 新手教学新增「写给谁用」页 + 整体放大（弹窗更宽、字号更大）
   - V0.6.13 ✅ 修复生成文字被截断：新增 `lib/text.ts` 的 `clipAtSentence`，
     所有摘要/标签改在句子边界收尾，提示词要求语义完整
+  - V0.6.14 ✅ 模型行为可控（`lib/behavior.ts` 的 Behavior Profile，三级作用域 Global/Conversation/Message）
+    + AI 用量透明（`lib/ai/usage.ts` 归一化 + `lib/pricing.ts` 价格层 + 每条回答的 token/费用展示）
 
 ## 安全规则
 

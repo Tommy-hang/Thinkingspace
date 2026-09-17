@@ -292,3 +292,17 @@ export const IconLayers = (p: P) => (
     <path d="m4 16.2 8 4.3 8-4.3" />
   </svg>
 );
+
+export const IconUsage = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" />
+  </svg>
+);
+
+export const IconSliders = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 8h10M18 8h2M4 16h4M12 16h8" />
+    <circle cx="16" cy="8" r="2" />
+    <circle cx="10" cy="16" r="2" />
+  </svg>
+);

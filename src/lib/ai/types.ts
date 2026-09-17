@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { ProviderConfig } from '../../types';
+import type { RawUsage } from './usage';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -23,6 +24,11 @@ export interface StreamChatOptions {
   onReasoning?: (text: string) => void;
   /** 是否开启深度思考，以及思考强度 */
   thinking?: ThinkingOptions;
+  /**
+   * 用量回调：**各 Provider 在适配器内部**把自家原始字段解析成与厂商无关的 RawUsage，
+   * 再交给上层统一归一化。聊天组件永远不接触厂商原始字段。
+   */
+  onUsage?: (raw: RawUsage) => void;
 }
 
 export const SYSTEM_PROMPT = [
