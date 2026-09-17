@@ -9,7 +9,7 @@ import type {
   Project,
   TopicNode,
 } from '../types';
-import { uid } from './id';
+import { newUuid, uid } from './id';
 
 export function buildBundle(
   data: Pick<PersistedData, 'projects' | 'nodes' | 'edges' | 'messages'>,
@@ -63,7 +63,7 @@ export function parseBundle(text: string): ImportedData {
   const messages = raw.messages ?? [];
 
   const projectMap = new Map<string, string>();
-  projects.forEach((p) => projectMap.set(p.id, uid('p_')));
+  projects.forEach((p) => projectMap.set(p.id, newUuid()));
   const nodeMap = new Map<string, string>();
   nodes.forEach((n) => nodeMap.set(n.id, uid('n_')));
 

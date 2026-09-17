@@ -178,18 +178,19 @@ export function buildBehaviorPrompt(profile: BehaviorProfile): string {
   return lines.join('\n');
 }
 
-/** 按 id 找 Profile，找不到就回退到默认 */
+/** 按 id 找 Profile，找不到就回退到默认。**对空/缺失的 profiles 也安全**。 */
 export function findBehavior(
-  profiles: BehaviorProfile[],
+  profiles: BehaviorProfile[] | undefined,
   id: string | undefined,
 ): BehaviorProfile {
+  const list = profiles && profiles.length > 0 ? profiles : DEFAULT_BEHAVIOR_PROFILES;
   if (id) {
-    const hit = profiles.find((p) => p.id === id);
+    const hit = list.find((p) => p.id === id);
     if (hit) return hit;
   }
   return (
-    profiles.find((p) => p.id === DEFAULT_BEHAVIOR_ID) ??
-    profiles[0] ??
+    list.find((p) => p.id === DEFAULT_BEHAVIOR_ID) ??
+    list[0] ??
     DEFAULT_BEHAVIOR_PROFILES[0]
   );
 }

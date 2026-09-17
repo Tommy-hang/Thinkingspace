@@ -2,7 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { GraphEdge, Message, Project, TopicNode } from '../types';
-import { uid } from './id';
+import { newUuid, uid } from './id';
 import { getSubtreeIds } from './tree';
 
 /**
@@ -50,7 +50,7 @@ export function cloneProject(
   const nodeMap = new Map<string, string>();
   for (const id of nodeIds) nodeMap.set(id, uid('n_'));
 
-  const newProjectId = overrides.id ?? uid('p_');
+  const newProjectId = overrides.id ?? newUuid();
 
   const nodes: TopicNode[] = sourceNodes.map((n) => ({
     ...n,

@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-16 · 当前版本 **V0.6.14**
+> 最后更新：2026-09-17 · 当前版本 **V0.6.15**
 
 ---
 
@@ -266,7 +266,25 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
     每条回答下方 `UsageBadge`（默认一行，可展开明细）；会话顶部累计用量；
     回答动作里新增「换个视角」（`rethink`，会计为一次新调用）
   - 设置面板新增「行为倾向」「用量与费用」两节（自定义 Profile / 自定义模型价格 / 显示开关）
-  - 冒烟测试 123→150 项要求
+  - 冒烟测试 123→150 项
+- **V0.6.15**：修复两个**同步相关严重 bug**（都是用户实测发现的）
+  - 🐞 **项目 id 不是 UUID → 同步完全失效**
+    - 根因：`projects.id` 在数据库是 `uuid` 列，但应用一直用 `uid('p_')` 生成 `p_xxx`，
+      推送时被数据库拒绝：`invalid input syntax for type uuid`
+    - 这是 V0.4 起就潜伏的问题；`cloud-check.mjs` 用的是硬编码 UUID，所以从未暴露
+    - 修复：新增 `id.ts` 的 `newUuid()` / `isUuid()`；4 处生成项目 id 的地方全部改用 `newUuid()`
+      （`createProject` / `parseBundle` / `cloneProject` / `buildSample`）
+    - 历史数据修复：`storage.ts` 新增 `ensureUuidProjectIds()`，把**非 UUID 且从未同步过**的项目 id
+      重新生成，并同步更新 nodes/edges 的 projectId 与 activeProjectId（在 `loadData` 里调用）
+  - 🐞 **点开卡片白屏**
+    - 根因：登录后 `fullSync` 直接采用**云端旧设置**（V0.6.14 之前存的，没有 `behavior` 字段），
+      FocusView 读 `behaviorSettings.profiles` 抛错 → React 卸载整棵树 → 白屏
+    - 修复：`storage.ts` 新增 `normalizeSettings()`，**任何进入应用的设置都先补齐默认值**；
+      `loadData` / `cloud/engine.ts` 的 `fullSync` / `cloud/sync.ts` 的 `pullSettings` 三处都调用
+    - 容错：`findBehavior()` 接受 `undefined`；FocusView / BehaviorSettings 对缺字段做兜底
+    - 加固：新增 `components/ErrorBoundary.tsx` 并在 `main.tsx` 包住 App ——
+      以后任何渲染错误都会显示友好提示而不是整页白屏
+  - 冒烟测试 150→162 项要求
 
 ---
 
@@ -411,9 +429,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.14
+版本         V0.6.15
 最新提交     （见 git log -1）
-分支         main 与 v0.6.14 已同步
+分支         main 与 v0.6.15 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

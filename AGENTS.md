@@ -110,6 +110,9 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
     所有摘要/标签改在句子边界收尾，提示词要求语义完整
   - V0.6.14 ✅ 模型行为可控（`lib/behavior.ts` 的 Behavior Profile，三级作用域 Global/Conversation/Message）
     + AI 用量透明（`lib/ai/usage.ts` 归一化 + `lib/pricing.ts` 价格层 + 每条回答的 token/费用展示）
+  - V0.6.15 ✅ 修复两个同步严重 bug：**项目 id 必须是 UUID**（`id.ts` 的 `newUuid()`；
+    `storage.ts` 的 `ensureUuidProjectIds()` 迁移旧数据）/ **设置必须归一化**
+    （`normalizeSettings()`，否则云端旧设置会让界面白屏）+ 全局 `ErrorBoundary`
 
 ## 安全规则
 

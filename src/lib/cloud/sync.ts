@@ -10,7 +10,7 @@ import type {
   Settings,
   TopicNode,
 } from '../../types';
-import { migrateOpenQuestions } from '../storage';
+import { migrateOpenQuestions, normalizeSettings } from '../storage';
 import { getSupabase } from './client';
 
 /** 一个项目的全部内容（对应数据库里的 content 字段） */
@@ -122,7 +122,8 @@ export async function pullSettings(): Promise<Settings | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data } = await supabase.from('user_settings').select('settings').maybeSingle();
-  return data && data.settings ? (data.settings as Settings) : null;
+  // 云端可能是旧版本存的设置，补齐默认值后再交给上层
+  return data && data.settings ? normalizeSettings(data.settings as Partial<Settings>) : null;
 }
 
 /** 拉取全部项目（含内容）。主要用于完整备份/诊断，日常同步走「按需加载」 */

@@ -12,7 +12,7 @@ import {
   type TopicNode,
 } from '../types';
 import { ancestorPath } from '../lib/ai/contextBuilder';
-import { findBehavior } from '../lib/behavior';
+import { findBehavior, DEFAULT_BEHAVIOR_PROFILES } from '../lib/behavior';
 import { formatTotalsSummary, sumUsage } from '../lib/ai/usage';
 import { Popover, MenuItem } from './Popover';
 import { Markdown } from './Markdown';
@@ -418,13 +418,21 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
   const streaming = streamingNodeId === nodeId;
 
   // Behavior 三级作用域：Message Override → 本会话 → 全局
+  // （这里对「设置缺字段」也做了兜底，任何情况下都不应该让界面崩掉）
+  const behaviorProfiles =
+    behaviorSettings?.profiles && behaviorSettings.profiles.length > 0
+      ? behaviorSettings.profiles
+      : DEFAULT_BEHAVIOR_PROFILES;
+  const globalBehaviorId = behaviorSettings?.activeProfileId ?? 'default';
+  const showUsage = behaviorSettings?.showUsage ?? true;
+
   const conversationBehavior = findBehavior(
-    behaviorSettings.profiles,
-    node?.behaviorId ?? behaviorSettings.activeProfileId,
+    behaviorProfiles,
+    node?.behaviorId ?? globalBehaviorId,
   );
   const nextBehavior = findBehavior(
-    behaviorSettings.profiles,
-    messageBehaviorId ?? node?.behaviorId ?? behaviorSettings.activeProfileId,
+    behaviorProfiles,
+    messageBehaviorId ?? node?.behaviorId ?? globalBehaviorId,
   );
   const sessionUsage = useMemo(() => sumUsage(nodeMessages), [nodeMessages]);
 
@@ -757,7 +765,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
-            {behaviorSettings.showUsage && sessionUsage.calls > 0 && (
+            {showUsage && sessionUsage.calls > 0 && (
               <span
                 className="hidden text-[11px] lg:inline"
                 style={{ color: 'var(--faint)' }}
@@ -1331,7 +1339,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                         </div>
                       )}
 
-                      {!isEditing && !isUser && behaviorSettings.showUsage && m.usage && (
+                      {!isEditing && !isUser && showUsage && m.usage && (
                         <div style={{ width: 'min(760px, 92%)' }}>
                           <UsageBadge usage={m.usage} />
                         </div>
@@ -1380,7 +1388,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                                   >
                                     从哪个视角重新思考
                                   </div>
-                                  {behaviorSettings.profiles.map((bp) => (
+                                  {behaviorProfiles.map((bp) => (
                                     <MenuItem
                                       key={bp.id}
                                       onClick={() => {
@@ -1609,7 +1617,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                       <span className="flex-1">跟随会话（{conversationBehavior.name}）</span>
                       {!messageBehaviorId && <IconCheck width={13} height={13} />}
                     </MenuItem>
-                    {behaviorSettings.profiles.map((bp) => (
+                    {behaviorProfiles.map((bp) => (
                       <MenuItem
                         key={bp.id}
                         onClick={() => {
@@ -1676,7 +1684,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                     >
                       行为倾向 · 本会话
                     </div>
-                    {behaviorSettings.profiles.map((bp) => {
+                    {behaviorProfiles.map((bp) => {
                       const active = bp.id === conversationBehavior.id;
                       return (
                         <MenuItem
@@ -1684,7 +1692,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
                           onClick={() =>
                             setNodeBehavior(
                               nodeId,
-                              bp.id === behaviorSettings.activeProfileId ? null : bp.id,
+                              bp.id === globalBehaviorId ? null : bp.id,
                             )
                           }
                         >

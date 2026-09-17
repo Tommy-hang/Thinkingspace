@@ -688,6 +688,60 @@ try {
   check('用量：未知价格会让总额成为下界', totals.hasUnpriced === true);
   check('用量：会话摘要文案', aiUsageMod.formatTotalsSummary(totals).includes('≥$'));
 
+  // --- 项目 id 必须是 UUID（修复「同步报 invalid input syntax for type uuid」）---
+  const idMod = await server.ssrLoadModule('/src/lib/id.ts');
+  const uuidSample = idMod.newUuid();
+  check('id：newUuid 生成标准 UUID', idMod.isUuid(uuidSample));
+  check('id：uid("p_") 不是 UUID', !idMod.isUuid(idMod.uid('p_')));
+
+  // 新建项目必须产出 UUID，否则云端 uuid 列会拒绝（回归测试）
+  const createdProjectId = storeMod.useStore.getState().createProject('uuid-check');
+  check('id：新建项目的 id 是 UUID', idMod.isUuid(createdProjectId));
+
+  const legacyProjectId = 'p_mu58jl93f87223cb';
+  const fixedIds = storageMod.ensureUuidProjectIds(
+    [{ id: legacyProjectId, title: '复变函数', summary: '', createdAt: 0, updatedAt: 0 }],
+    [t('n1', null, { projectId: legacyProjectId })],
+    [{ id: 'e1', projectId: legacyProjectId, source: 'a', target: 'b', type: 'branch', createdAt: 0 }],
+    legacyProjectId,
+  );
+  check('id 迁移：项目 id 换成 UUID', idMod.isUuid(fixedIds.projects[0].id));
+  check('id 迁移：节点 projectId 跟着换', fixedIds.nodes[0].projectId === fixedIds.projects[0].id);
+  check('id 迁移：连线 projectId 跟着换', fixedIds.edges[0].projectId === fixedIds.projects[0].id);
+  check('id 迁移：activeProjectId 跟着换', fixedIds.activeProjectId === fixedIds.projects[0].id);
+  check(
+    'id 迁移：已同步过的 UUID 项目不动',
+    storageMod.ensureUuidProjectIds(
+      [
+        {
+          id: uuidSample,
+          title: 'x',
+          summary: '',
+          createdAt: 0,
+          updatedAt: 0,
+          cloudUpdatedAt: 1,
+        },
+      ],
+      [],
+      [],
+      uuidSample,
+    ).projects[0].id === uuidSample,
+  );
+
+  // --- 设置归一化（修复「点开卡片白屏」：云端旧设置缺少 behavior 字段）---
+  const normalizedOld = storageMod.normalizeSettings({ theme: 'dark' });
+  check(
+    '设置归一：补齐缺失的 behavior',
+    Boolean(normalizedOld.behavior && Array.isArray(normalizedOld.behavior.profiles)),
+  );
+  check('设置归一：保留旧值', normalizedOld.theme === 'dark');
+  check(
+    '设置归一：空设置也安全',
+    Array.isArray(storageMod.normalizeSettings(undefined).behavior.profiles),
+  );
+  check('行为：profiles 缺失时不崩', behaviorMod.findBehavior(undefined, 'explorer').id === 'explorer');
+  check('行为：profiles 为空时不崩', behaviorMod.findBehavior([], undefined).id === 'default');
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

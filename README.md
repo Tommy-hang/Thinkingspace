@@ -6,7 +6,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.14**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.6.15**
 
 支持桌面与手机浏览器。
 
@@ -441,6 +441,7 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.12** ✅ 新手教学新增「写给谁用」页（具体场景 + 处境对照），并整体放大（弹窗更宽、字号更大）
   - **V0.6.13** ✅ 修复生成文字被截断：所有摘要改为在**句子边界**收尾，提示词明确要求语义完整
   - **V0.6.14** ✅ 模型行为可控（Behavior Profile）+ AI 用量透明（token / 费用 / 延迟）
+  - **V0.6.15** ✅ 修复两个同步相关严重 bug（项目 id 不是 UUID 导致同步失败 / 云端旧设置导致点卡片白屏）+ 全局错误边界
 
 ---
 

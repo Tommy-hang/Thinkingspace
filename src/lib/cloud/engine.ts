@@ -2,6 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { GraphEdge, Message, Project, Settings, TopicNode } from '../../types';
+import { normalizeSettings } from '../storage';
 import { cloneProject, type ClonedProject } from '../projectTransfer';
 import {
   deleteRemoteProjects,
@@ -269,12 +270,14 @@ export async function fullSync(local: WorkspaceSnapshot): Promise<MergeOutcome> 
     });
   }
 
-  let settings = local.settings;
+  // ⚠️ 云端那份设置可能是旧版本存的（缺少新字段），必须补齐后再用；
+  // 否则界面会读到 undefined 直接崩溃（表现为点开卡片白屏）。
+  let settings = normalizeSettings(local.settings);
   if (remoteSettings) {
-    settings = remoteSettings;
+    settings = normalizeSettings(remoteSettings);
   } else {
     try {
-      await pushSettings(local.settings);
+      await pushSettings(settings);
     } catch {
       warnings.push('设置未能上传，稍后会自动重试。');
     }

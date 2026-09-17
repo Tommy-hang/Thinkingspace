@@ -8,6 +8,7 @@ import {
   BEHAVIOR_DIMENSIONS,
   BEHAVIOR_DIMENSION_MAX,
   BEHAVIOR_DIMENSION_MIN,
+  DEFAULT_BEHAVIOR_PROFILES,
 } from '../lib/behavior';
 import { MODEL_PRICES } from '../lib/pricing';
 import { IconCheck, IconPlus, IconSliders, IconTrash } from './icons';
@@ -20,6 +21,13 @@ const MID: BehaviorDimensions = { focus: 2, length: 2, risk: 2, stance: 2, form:
  */
 export function BehaviorSettings() {
   const behavior = useStore((s) => s.settings.behavior);
+  // 兜底：即使设置缺字段也不会崩
+  const profiles =
+    behavior?.profiles && behavior.profiles.length > 0
+      ? behavior.profiles
+      : DEFAULT_BEHAVIOR_PROFILES;
+  const activeProfileId = behavior?.activeProfileId ?? 'default';
+  const showUsage = behavior?.showUsage ?? true;
   const setActiveBehavior = useStore((s) => s.setActiveBehavior);
   const addBehavior = useStore((s) => s.addBehavior);
   const updateBehavior = useStore((s) => s.updateBehavior);
@@ -34,7 +42,7 @@ export function BehaviorSettings() {
   const [priceIn, setPriceIn] = useState('');
   const [priceOut, setPriceOut] = useState('');
 
-  const customPrices = behavior.customPrices ?? {};
+  const customPrices = behavior?.customPrices ?? {};
 
   const startNew = () =>
     setEditing({
@@ -103,8 +111,8 @@ export function BehaviorSettings() {
         )}
 
         <div className="flex flex-col gap-2">
-          {behavior.profiles.map((p) => {
-            const active = p.id === behavior.activeProfileId;
+          {profiles.map((p) => {
+            const active = p.id === activeProfileId;
             return (
               <div
                 key={p.id}
@@ -180,7 +188,7 @@ export function BehaviorSettings() {
         <h3 className="mb-2 text-[13px] font-semibold">用量与费用</h3>
         <Toggle
           label="在每条回答下方显示 token 与费用"
-          checked={behavior.showUsage}
+          checked={showUsage}
           onChange={setShowUsage}
         />
         <p className="mt-2 mb-3 text-[11.5px] leading-relaxed" style={{ color: 'var(--faint)' }}>

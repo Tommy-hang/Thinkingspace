@@ -23,7 +23,7 @@ import type {
   ThinkingSettings,
   TopicNode,
 } from '../types';
-import { uid } from '../lib/id';
+import { newUuid, uid } from '../lib/id';
 import { buildContext } from '../lib/ai/contextBuilder';
 import { runChat } from '../lib/ai';
 import { normalizeUsage, type RawUsage } from '../lib/ai/usage';
@@ -482,7 +482,7 @@ export const useStore = create<StoreState>((set, get) => ({
     pushHistory();
     const now = Date.now();
     const project: Project = {
-      id: uid('p_'),
+      id: newUuid(),
       title: title.trim() || '未命名项目',
       summary: '',
       createdAt: now,

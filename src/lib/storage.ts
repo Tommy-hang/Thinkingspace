@@ -21,7 +21,7 @@ import {
   DEFAULT_BEHAVIOR_PROFILES,
   mergeBehaviorProfiles,
 } from './behavior';
-import { uid } from './id';
+import { newUuid, uid, isUuid } from './id';
 
 export const DATA_KEY = 'thinkingspace.data.v1';
 export const SECRETS_KEY = 'thinkingspace.secrets.v1';
@@ -183,7 +183,7 @@ function buildSample(): {
   messages: Message[];
 } {
   const now = Date.now();
-  const projectId = uid('p_');
+  const projectId = newUuid();
 
   const mk = (
     title: string,
@@ -315,6 +315,34 @@ export function createDefaultData(): PersistedData {
   };
 }
 
+/**
+ * 把任意来源（本地 localStorage / 云端拉取）的设置**补齐为完整结构**。
+ *
+ * ⚠️ 重要：云端存的是一份完整的 Settings 快照。如果用户云端那份是旧版本存的
+ * （例如 V0.6.14 之前没有 `behavior` 字段），直接拿来用会让界面读 undefined 而崩溃。
+ * 所以**任何进入应用的设置都必须先过这里**。
+ */
+export function normalizeSettings(raw?: Partial<Settings> | null): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    context: { ...DEFAULT_SETTINGS.context, ...raw?.context },
+    providers: mergeProviders(raw?.providers),
+    thinking: { ...DEFAULT_SETTINGS.thinking, ...raw?.thinking },
+    reasoning: { ...DEFAULT_SETTINGS.reasoning, ...raw?.reasoning },
+    search: {
+      ...DEFAULT_SETTINGS.search,
+      ...raw?.search,
+      providers: mergeSearchProviders(raw?.search?.providers),
+    },
+    behavior: {
+      ...DEFAULT_BEHAVIOR_SETTINGS,
+      ...raw?.behavior,
+      profiles: mergeBehaviorProfiles(raw?.behavior?.profiles),
+    },
+  };
+}
+
 export function loadData(): PersistedData {
   try {
     const raw = localStorage.getItem(DATA_KEY);
@@ -322,35 +350,24 @@ export function loadData(): PersistedData {
     const parsed = JSON.parse(raw) as Partial<PersistedData>;
     if (!parsed || !Array.isArray(parsed.projects)) return createDefaultData();
 
-    const settings: Settings = {
-      ...DEFAULT_SETTINGS,
-      ...parsed.settings,
-      context: { ...DEFAULT_SETTINGS.context, ...parsed.settings?.context },
-      providers: mergeProviders(parsed.settings?.providers),
-      thinking: { ...DEFAULT_SETTINGS.thinking, ...parsed.settings?.thinking },
-      reasoning: { ...DEFAULT_SETTINGS.reasoning, ...parsed.settings?.reasoning },
-      search: {
-        ...DEFAULT_SETTINGS.search,
-        ...parsed.settings?.search,
-        providers: mergeSearchProviders(parsed.settings?.search?.providers),
-      },
-      behavior: {
-        ...DEFAULT_BEHAVIOR_SETTINGS,
-        ...parsed.settings?.behavior,
-        profiles: mergeBehaviorProfiles(parsed.settings?.behavior?.profiles),
-      },
-    };
+    const settings = normalizeSettings(parsed.settings);
 
     const migrated = migrateOpenQuestions(parsed.projects ?? [], parsed.nodes ?? []);
+    const fixed = ensureUuidProjectIds(
+      migrated.projects,
+      migrated.nodes,
+      parsed.edges ?? [],
+      parsed.activeProjectId ?? null,
+    );
 
     return {
       version: 1,
-      projects: migrated.projects,
-      nodes: migrated.nodes,
-      edges: parsed.edges ?? [],
+      projects: fixed.projects,
+      nodes: fixed.nodes,
+      edges: fixed.edges,
       messages: parsed.messages ?? [],
       settings,
-      activeProjectId: parsed.activeProjectId ?? parsed.projects?.[0]?.id ?? null,
+      activeProjectId: fixed.activeProjectId ?? fixed.projects[0]?.id ?? null,
     };
   } catch (err) {
     console.error('[ThinkingSpace] 读取本地数据失败，已回退到默认数据。', err);
@@ -406,6 +423,49 @@ export function migrateOpenQuestions(
   });
 
   return { projects: nextProjects, nodes: nextNodes };
+}
+
+/**
+ * ============ 历史数据修复：把项目 id 换成标准 UUID ============
+ *
+ * 早期版本用 `uid('p_')` 生成项目 id（形如 `p_mu58jl93f87223cb`），
+ * 但云端 `projects.id` 是 **uuid 列**，推送时会被数据库直接拒绝：
+ *   invalid input syntax for type uuid
+ * 结果是「登录了但一直同步不上去」。
+ *
+ * 这里把还不是 UUID、且**从未同步过**的项目 id 重新生成，
+ * 并同步更新它下面所有节点 / 连线的 projectId 与 activeProjectId。
+ * 已经同步过的项目 id 必然是 UUID，因此不会被改动。
+ */
+export function ensureUuidProjectIds(
+  projects: Project[],
+  nodes: TopicNode[],
+  edges: GraphEdge[],
+  activeProjectId: string | null,
+): {
+  projects: Project[];
+  nodes: TopicNode[];
+  edges: GraphEdge[];
+  activeProjectId: string | null;
+} {
+  const remap = new Map<string, string>();
+  for (const p of projects) {
+    if (!isUuid(p.id) && !p.cloudUpdatedAt) remap.set(p.id, newUuid());
+  }
+  if (remap.size === 0) return { projects, nodes, edges, activeProjectId };
+
+  const nextId = (id: string) => remap.get(id) ?? id;
+
+  return {
+    projects: projects.map((p) => (remap.has(p.id) ? { ...p, id: remap.get(p.id)! } : p)),
+    nodes: nodes.map((n) =>
+      remap.has(n.projectId) ? { ...n, projectId: nextId(n.projectId) } : n,
+    ),
+    edges: edges.map((e) =>
+      remap.has(e.projectId) ? { ...e, projectId: nextId(e.projectId) } : e,
+    ),
+    activeProjectId: activeProjectId ? nextId(activeProjectId) : activeProjectId,
+  };
 }
 
 function mergeSearchProviders(saved?: SearchProviderConfig[]): SearchProviderConfig[] {
