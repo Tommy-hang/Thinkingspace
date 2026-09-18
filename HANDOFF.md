@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-17 · 当前版本 **V0.7.1**
+> 最后更新：2026-09-17 · 当前版本 **V0.7.2**
 
 ---
 
@@ -330,6 +330,8 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - 冒烟测试 179→194 项
   - **仍未做（V3 及后续）**：Conversation State（增量更新）、真正的向量检索（pgvector）、
     Reranker、Model Router、Escalation、LLMLingua-2 压缩、Cost Simulator、Learned Router
+- **V0.7.2**：README 版本路线补充主题 —— **V0.7 Adaptive Runtime：把算力花在真正重要的地方。**
+  （仅文档；V0.7 这一代 = Cost Foundation + Context Intelligence，后续 V3 也归入同一代）
 
 ---
 
@@ -475,9 +477,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.7.1
+版本         V0.7.2
 最新提交     （见 git log -1）
-分支         main 与 v0.7.1 已同步
+分支         main 与 v0.7.2 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

@@ -6,7 +6,7 @@
 
 ![ThinkingSpace —— 让问题拥有空间](./src/assets/poster-landscape.jpg)
 
-**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.7.1**
+**在线体验**：https://tommy-hang.github.io/Thinkingspace/ · 当前版本 **V0.7.2**
 
 支持桌面与手机浏览器。
 
@@ -460,8 +460,10 @@ scripts/cloud-check.mjs     云端同步联调
   - **V0.6.13** ✅ 修复生成文字被截断：所有摘要改为在**句子边界**收尾，提示词明确要求语义完整
   - **V0.6.14** ✅ 模型行为可控（Behavior Profile）+ AI 用量透明（token / 费用 / 延迟）
   - **V0.6.15** ✅ 修复两个同步相关严重 bug（项目 id 不是 UUID 导致同步失败 / 云端旧设置导致点卡片白屏）+ 全局错误边界
+- **V0.7 Adaptive Runtime** 🚧 —— **ThinkingSpace Adaptive Runtime：把算力花在真正重要的地方。**
   - **V0.7.0** ✅ Cost Foundation：稳定前缀 + 缓存遥测 + 成本拆分 + 自适应思考与回答长度
   - **V0.7.1** ✅ Context Intelligence：上下文依赖检测 + 相关历史/记忆检索 + 上下文预算与检视
+  - **V0.7.2** ✅ README 版本路线补充「V0.7 Adaptive Runtime」主题
 
 ---
 

@@ -120,6 +120,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
     + `Settings.runtime` 三个开关
   - V0.7.1 ✅ Context Intelligence：`ai/contextPlanner.ts`（依赖检测 / 词法检索 / 记忆 / 预算）
     + 上下文检视（Context Inspector）+ `Settings.runtime.contextIntelligence` 开关
+  - V0.7.2 ✅ README 版本路线补充主题：V0.7 Adaptive Runtime —— 把算力花在真正重要的地方
 
 ## 安全规则
 
