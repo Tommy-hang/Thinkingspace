@@ -1341,7 +1341,7 @@ export function FocusView({ nodeId, originRect, onClose }: FocusViewProps) {
 
                       {!isEditing && !isUser && showUsage && m.usage && (
                         <div style={{ width: 'min(760px, 92%)' }}>
-                          <UsageBadge usage={m.usage} />
+                          <UsageBadge usage={m.usage} plan={m.plan} />
                         </div>
                       )}
 

@@ -742,6 +742,77 @@ try {
   check('行为：profiles 缺失时不崩', behaviorMod.findBehavior(undefined, 'explorer').id === 'explorer');
   check('行为：profiles 为空时不崩', behaviorMod.findBehavior([], undefined).id === 'default');
 
+  // --- V0.7.0 Cost Foundation ---
+  const policyMod = await server.ssrLoadModule('/src/lib/ai/policy.ts');
+  check('策略：指纹稳定', policyMod.fingerprint('abc') === policyMod.fingerprint('abc'));
+  check('策略：指纹会变', policyMod.fingerprint('abc') !== policyMod.fingerprint('abd'));
+  check('策略：寒暄不推理', policyMod.planReasoning('你好').level === 'none');
+  check(
+    '策略：难题用强推理',
+    ['high', 'max'].includes(
+      policyMod.planReasoning('请推导这个算法的复杂度并证明其正确性，详细说明每一步').level,
+    ),
+  );
+  check(
+    '策略：普通问题轻推理',
+    policyMod.planReasoning('注意力机制是怎么工作的，能说说吗').level === 'low',
+  );
+  check('策略：要求简短→紧凑', policyMod.planOutput('简单说一下', 'low').budget === 'compact');
+  check('策略：要求详细→深入', policyMod.planOutput('请详细展开讲解', 'high').budget === 'deep');
+
+  const planOn = policyMod.planRequest({
+    question: '你好',
+    stableText: 'sys',
+    stableChars: 3,
+    dynamicChars: 1,
+    runtime: { stablePrefix: true, adaptiveReasoning: true, adaptiveOutput: true },
+  });
+  check(
+    '策略：planRequest 产出完整决策',
+    planOn.reasoning === 'none' && planOn.prefixFingerprint.length === 8 && planOn.maxOutputTokens > 0,
+  );
+  const planOff = policyMod.planRequest({
+    question: '请证明',
+    stableText: 'sys',
+    stableChars: 3,
+    dynamicChars: 1,
+    runtime: { stablePrefix: true, adaptiveReasoning: false, adaptiveOutput: false },
+    manualThinking: { enabled: true, effort: 'high' },
+  });
+  check(
+    '策略：关闭自适应后按手动设置',
+    planOff.reasoning === 'high' && planOff.maxOutputTokens === undefined,
+  );
+
+  const costCached = pricingMod.estimateCost('deepseek-flash', {
+    inputTokens: 1000000,
+    cachedInputTokens: 800000,
+    outputTokens: 0,
+  });
+  check(
+    '价格：拆分 input / cached',
+    costCached.inputCost > 0 && costCached.cachedInputCost > 0,
+  );
+  check('价格：给出无缓存基准价', costCached.baselineInputCost === 0.28);
+  check(
+    '价格：缓存节省 = 基准 − 实际',
+    Math.abs(
+      costCached.cacheSavingsUsd -
+        (costCached.baselineInputCost - costCached.inputCost - costCached.cachedInputCost),
+    ) < 1e-12,
+  );
+
+  const uCached = aiUsageMod.normalizeUsage({
+    providerId: 'deepseek',
+    provider: 'DeepSeek',
+    model: 'deepseek-flash',
+    raw: { promptTokens: 1000, completionTokens: 100, cachedTokens: 800 },
+  });
+  check('用量：未命中 = 输入 − 命中', uCached.uncachedInputTokens === 200);
+  check('用量：缓存命中率', Math.abs(uCached.cacheHitRate - 0.8) < 1e-9);
+  check('用量：优化率可计算', aiUsageMod.optimizationRate(uCached) > 0);
+  check('用量：币种固定 USD', uCached.currency === 'USD');
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }

@@ -47,7 +47,8 @@ function parseUsage(usage: unknown): RawUsage | null {
  * DeepSeek、OpenAI、OpenRouter、以及任何 OpenAI-compatible 服务都可复用。
  */
 export async function streamOpenAICompatible(options: StreamChatOptions): Promise<void> {
-  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, onUsage } = options;
+  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, maxTokens, onUsage } =
+    options;
 
   const body: Record<string, unknown> = {
     model: provider.model,
@@ -57,10 +58,14 @@ export async function streamOpenAICompatible(options: StreamChatOptions): Promis
     stream_options: { include_usage: true },
   };
 
+  if (typeof maxTokens === 'number' && maxTokens > 0) {
+    body.max_tokens = maxTokens;
+  }
+
   // DeepSeek：思考模式由参数控制，而不是靠换模型名
   if (provider.thinkingStyle === 'deepseek' && thinking) {
     body.thinking = { type: thinking.enabled ? 'enabled' : 'disabled' };
-    body.reasoning_effort = thinking.effort;
+    if (thinking.enabled) body.reasoning_effort = thinking.effort;
   }
 
   const url = joinUrl(provider.baseUrl, 'chat/completions');

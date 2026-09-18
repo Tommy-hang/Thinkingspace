@@ -33,6 +33,8 @@ export function BehaviorSettings() {
   const updateBehavior = useStore((s) => s.updateBehavior);
   const removeBehavior = useStore((s) => s.removeBehavior);
   const setShowUsage = useStore((s) => s.setShowUsage);
+  const setRuntime = useStore((s) => s.setRuntime);
+  const runtime = useStore((s) => s.settings.runtime);
   const setCustomPrice = useStore((s) => s.setCustomPrice);
   const removeCustomPrice = useStore((s) => s.removeCustomPrice);
   const providers = useStore((s) => s.settings.providers);
@@ -263,6 +265,33 @@ export function BehaviorSettings() {
           <button className="btn btn-outline !text-[12px]" onClick={addPrice}>
             <IconPlus width={13} height={13} /> 添加价格
           </button>
+        </div>
+
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="mb-2 text-[12px] font-medium" style={{ color: 'var(--muted)' }}>
+            成本优化（可单独关闭）
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <Toggle
+              label="稳定前缀优先（提高上下文缓存命中率）"
+              checked={runtime?.stablePrefix ?? true}
+              onChange={(v) => setRuntime({ stablePrefix: v })}
+            />
+            <Toggle
+              label="自动选择思考强度（按问题难度）"
+              checked={runtime?.adaptiveReasoning ?? true}
+              onChange={(v) => setRuntime({ adaptiveReasoning: v })}
+            />
+            <Toggle
+              label="自动控制回答长度"
+              checked={runtime?.adaptiveOutput ?? true}
+              onChange={(v) => setRuntime({ adaptiveOutput: v })}
+            />
+          </div>
+          <p className="mt-2 text-[11.5px] leading-relaxed" style={{ color: 'var(--faint)' }}>
+            这些优化全部由<strong>规则</strong>完成，不会为了做判断而额外调用模型。
+            如果觉得回答变差，可以逐项关掉来定位原因。
+          </p>
         </div>
       </section>
     </>

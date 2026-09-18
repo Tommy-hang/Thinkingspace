@@ -38,9 +38,21 @@ export interface CostInput {
 
 export interface CostResult {
   kind: UsageCostKind;
-  /** 美元；kind 为 unavailable 时为 undefined */
+  /** 实际总费用；kind 为 unavailable 时为 undefined */
   usd?: number;
+  /** 未命中缓存的 input 费用 */
+  inputCost?: number;
+  /** 命中缓存的 input 费用 */
+  cachedInputCost?: number;
+  outputCost?: number;
+  /** 假如全部 input 都未命中缓存，input 部分会是多少 */
+  baselineInputCost?: number;
+  /** 缓存省下的钱 */
+  cacheSavingsUsd?: number;
 }
+
+/** 价格表版本：价格调整时 +1，便于对照历史数据 */
+export const PRICING_VERSION = 1;
 
 export function resolvePrice(
   model: string,
@@ -54,12 +66,13 @@ export function resolvePrice(
 }
 
 /**
- * 由 token 数推算费用。
+ * 由 token 数推算费用，并给出**可解释的拆分**。
  *
  * 约定：
- * - `inputTokens` 若包含缓存命中的部分，会按 `cachedInput` 单价折算（不重复计费）；
- * - `reasoningTokens` 视为已包含在 `outputTokens` 内（多数 Provider 如此），
- *   因此**不额外加价**，只在明细里展示；
+ * - `cachedInputTokens` 是 `inputTokens` 中命中缓存的部分，按 `cachedInput` 单价折算；
+ * - `baselineInputCost` 是「全部 input 都未命中缓存」的对照价，
+ *   两者的差就是缓存真正省下的钱；
+ * - `reasoningTokens` 视为已包含在 `outputTokens` 内，不额外加价；
  * - 找不到价格时返回 `unavailable`，绝不返回 0 冒充免费。
  */
 export function estimateCost(
@@ -67,20 +80,39 @@ export function estimateCost(
   usage: CostInput,
   options: { customPrices?: Record<string, ModelPrice>; isLocal?: boolean } = {},
 ): CostResult {
-  if (options.isLocal) return { kind: 'free', usd: 0 };
+  if (options.isLocal) {
+    return {
+      kind: 'free',
+      usd: 0,
+      inputCost: 0,
+      cachedInputCost: 0,
+      outputCost: 0,
+      baselineInputCost: 0,
+      cacheSavingsUsd: 0,
+    };
+  }
 
   const price = resolvePrice(model, options.customPrices);
   if (!price) return { kind: 'unavailable' };
 
   const input = Math.max(0, usage.inputTokens ?? 0);
   const cached = Math.min(Math.max(0, usage.cachedInputTokens ?? 0), input);
+  const uncached = input - cached;
   const output = Math.max(0, usage.outputTokens ?? 0);
-
   const cachedPrice = price.cachedInput ?? price.input;
 
-  const usd =
-    ((input - cached) * price.input + cached * cachedPrice + output * price.output) /
-    1_000_000;
+  const inputCost = (uncached * price.input) / 1_000_000;
+  const cachedInputCost = (cached * cachedPrice) / 1_000_000;
+  const outputCost = (output * price.output) / 1_000_000;
+  const baselineInputCost = (input * price.input) / 1_000_000;
 
-  return { kind: 'estimated', usd: Math.max(0, usd) };
+  return {
+    kind: 'estimated',
+    usd: Math.max(0, inputCost + cachedInputCost + outputCost),
+    inputCost,
+    cachedInputCost,
+    outputCost,
+    baselineInputCost,
+    cacheSavingsUsd: Math.max(0, baselineInputCost - (inputCost + cachedInputCost)),
+  };
 }

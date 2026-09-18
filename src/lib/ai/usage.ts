@@ -2,7 +2,7 @@
 // Copyright (C) 2026 张文曜 (Tommy-hang)
 
 import type { AiUsage, Message, ModelPrice, UsageCostKind } from '../../types';
-import { estimateCost } from '../pricing';
+import { estimateCost, type CostResult } from '../pricing';
 
 /**
  * AI 用量归一化层。
@@ -50,34 +50,53 @@ export function normalizeUsage(input: NormalizeUsageInput): AiUsage {
 
   let costKind: UsageCostKind = 'unavailable';
   let costUsd: number | undefined;
+  let breakdown: CostResult = { kind: 'unavailable' };
 
   if (input.isLocal) {
+    breakdown = estimateCost(input.model, {}, { isLocal: true });
     costKind = 'free';
     costUsd = 0;
   } else if (typeof raw?.costUsd === 'number') {
     costKind = 'exact';
     costUsd = raw.costUsd;
   } else if (inputTokens !== undefined || outputTokens !== undefined) {
-    const est = estimateCost(
+    breakdown = estimateCost(
       input.model,
       { inputTokens, outputTokens, cachedInputTokens },
       { customPrices: input.customPrices },
     );
-    costKind = est.kind;
-    costUsd = est.usd;
+    costKind = breakdown.kind;
+    costUsd = breakdown.usd;
   }
+
+  const uncachedInputTokens =
+    inputTokens === undefined
+      ? undefined
+      : Math.max(0, inputTokens - (cachedInputTokens ?? 0));
+  const cacheHitRate =
+    inputTokens && inputTokens > 0 && cachedInputTokens !== undefined
+      ? cachedInputTokens / inputTokens
+      : undefined;
 
   return {
     providerId: input.providerId,
     provider: input.provider,
     model: input.model,
     inputTokens,
-    outputTokens,
-    reasoningTokens,
     cachedInputTokens,
+    uncachedInputTokens,
+    reasoningTokens,
+    outputTokens,
     totalTokens,
+    inputCost: breakdown.inputCost,
+    cachedInputCost: breakdown.cachedInputCost,
+    outputCost: breakdown.outputCost,
+    baselineInputCost: breakdown.baselineInputCost,
+    cacheSavingsUsd: breakdown.cacheSavingsUsd,
+    cacheHitRate,
     costKind,
     costUsd,
+    currency: 'USD',
     latencyMs: input.latencyMs,
     at: Date.now(),
   };
@@ -120,6 +139,26 @@ export function formatCost(usage: AiUsage): string {
     default:
       return `≈$${formatUsd(usage.costUsd)}`;
   }
+}
+
+/** 缓存命中率文案，如 `72%`；没有缓存数据时返回 null */
+export function formatCacheRate(usage: AiUsage): string | null {
+  if (usage.cacheHitRate === undefined) return null;
+  return `${Math.round(usage.cacheHitRate * 100)}%`;
+}
+
+/** 优化率：相对「完全没有缓存」省下的比例（0~1） */
+export function optimizationRate(usage: AiUsage): number | null {
+  if (usage.cacheSavingsUsd === undefined || usage.costUsd === undefined) return null;
+  const baseline = usage.costUsd + usage.cacheSavingsUsd;
+  if (baseline <= 0 || usage.cacheSavingsUsd <= 0) return null;
+  return usage.cacheSavingsUsd / baseline;
+}
+
+/** 省下的钱文案 */
+export function formatSavings(usage: AiUsage): string | null {
+  if (!usage.cacheSavingsUsd || usage.cacheSavingsUsd <= 0) return null;
+  return `$${formatUsd(usage.cacheSavingsUsd)}`;
 }
 
 /* ============================ 累积 ============================ */

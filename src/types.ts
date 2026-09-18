@@ -262,6 +262,8 @@ export interface Message {
   behaviorId?: string;
   /** 本次 API 调用的归一化用量 */
   usage?: AiUsage;
+  /** 本次的成本决策记录（思考强度 / 输出预算 / 前缀指纹） */
+  plan?: RequestPlan;
   /** 若这是「换个视角重新思考」的产物，记录它基于哪条回答 */
   rethinkOf?: string;
   createdAt: number;
@@ -392,16 +394,58 @@ export interface AiUsage {
   providerId: string;
   provider: string;
   model: string;
+
   inputTokens?: number;
-  outputTokens?: number;
-  reasoningTokens?: number;
+  /** 命中 Provider 上下文缓存的部分 */
   cachedInputTokens?: number;
+  /** 未命中缓存、按全价计费的部分 */
+  uncachedInputTokens?: number;
+  reasoningTokens?: number;
+  outputTokens?: number;
   totalTokens?: number;
+
+  /** 费用拆分（美元） */
+  inputCost?: number;
+  cachedInputCost?: number;
+  outputCost?: number;
+
   costKind: UsageCostKind;
-  /** 美元 */
+  /** 实际总费用 */
   costUsd?: number;
+  /** 假如所有 input 都没命中缓存，input 部分会是多少钱 */
+  baselineInputCost?: number;
+  /** 缓存省下的钱 = baselineInputCost - 实际 inputCost */
+  cacheSavingsUsd?: number;
+  /** 缓存命中率 0~1 */
+  cacheHitRate?: number;
+
+  currency: 'USD';
   latencyMs?: number;
   at: number;
+}
+
+/** 思考强度（与 Provider 无关的抽象） */
+export type ReasoningLevel = 'none' | 'low' | 'high' | 'max';
+
+/** 期望回答长度（与 Provider 无关的抽象） */
+export type OutputBudget = 'compact' | 'normal' | 'detailed' | 'deep';
+
+/**
+ * 一次请求的「成本决策记录」：为什么这样调模型。
+ * 全部由**规则**产生，不额外调用任何模型。
+ */
+export interface RequestPlan {
+  reasoning: ReasoningLevel;
+  /** 一句话解释为什么这样选 */
+  reasoningWhy: string;
+  outputBudget: OutputBudget;
+  /** 输出 token 上限（安全网，防止明显失控的超长回答） */
+  maxOutputTokens?: number;
+  outputWhy: string;
+  /** 稳定前缀指纹：变了说明 Provider Cache 可能失效 */
+  prefixFingerprint: string;
+  stableChars: number;
+  dynamicChars: number;
 }
 
 /** 每 100 万 token 的价格（美元） */
@@ -422,6 +466,19 @@ export interface BehaviorSettings {
   customPrices?: Record<string, ModelPrice>;
 }
 
+/**
+ * Cost-Aware Runtime 的开关。
+ * 每一项智能优化都必须能单独关闭 —— 出问题时可以快速定位、回滚与 A/B。
+ */
+export interface RuntimeSettings {
+  /** 稳定前缀优先：把稳定内容固定在前面，提高 Provider Cache 命中率 */
+  stablePrefix: boolean;
+  /** 按问题难度自动选择思考强度（纯规则，不额外调用模型） */
+  adaptiveReasoning: boolean;
+  /** 按问题类型自动给出回答长度预算 */
+  adaptiveOutput: boolean;
+}
+
 export interface Settings {
   activeProviderId: string;
   providers: ProviderConfig[];
@@ -431,6 +488,7 @@ export interface Settings {
   search: SearchSettings;
   reasoning: ReasoningSettings;
   behavior: BehaviorSettings;
+  runtime: RuntimeSettings;
 }
 
 export interface PersistedData {

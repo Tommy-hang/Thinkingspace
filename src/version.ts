@@ -5,5 +5,6 @@
  * 每次功能更新时手动 +1，方便在界面上确认「我打开的是不是新版本」。
  * 版本号遵循产品路线：V0.4 保留给「登录 + 云同步」，在此之前都属于 V0.3.x 的体验打磨。
  */
-export const APP_VERSION = 'V0.6.15';
-export const APP_VERSION_NOTE = '修复两个同步相关严重 bug：项目 id 不是 UUID 导致同步失败 / 云端旧设置导致点卡片白屏';
+export const APP_VERSION = 'V0.7.0';
+export const APP_VERSION_NOTE =
+  'Cost Foundation：稳定前缀 + 缓存遥测 + 成本拆分 + 自适应思考/长度（成本感知 Runtime 第一步）';

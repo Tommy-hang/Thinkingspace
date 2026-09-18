@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-17 · 当前版本 **V0.6.15**
+> 最后更新：2026-09-17 · 当前版本 **V0.7.0**
 
 ---
 
@@ -284,7 +284,35 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
     - 容错：`findBehavior()` 接受 `undefined`；FocusView / BehaviorSettings 对缺字段做兜底
     - 加固：新增 `components/ErrorBoundary.tsx` 并在 `main.tsx` 包住 App ——
       以后任何渲染错误都会显示友好提示而不是整页白屏
-  - 冒烟测试 150→162 项要求
+  - 冒烟测试 150→162 项
+- **V0.7.0**：Cost Foundation（成本感知 Runtime 的第一步）
+  - 目标：**几乎不改变回答行为**的前提下，先让系统「知道钱花在哪」，同时提高 Provider 缓存命中率
+  - **稳定前缀 / 动态上下文分离**（`ai/contextBuilder.ts`）
+    - 稳定区 = 系统规则 + Behavior Profile（**顺序固定、内容不随对话变化**）
+    - 动态区 = 项目概述 / 祖先 / 锚点 / 检索 / 引用 / 对话 / 问题
+    - 返回 `stableText` / `stableChars` / `dynamicChars`
+  - **前缀指纹**（`ai/policy.ts` 的 `fingerprint()`，FNV-1a 8 位十六进制）
+    - 稳定区变一个字节指纹就变 → 用于排查「为什么 cache 命中率低」
+  - **成本拆分与基准**（`lib/pricing.ts`）
+    - `estimateCost()` 现在返回 `inputCost / cachedInputCost / outputCost /
+      baselineInputCost / cacheSavingsUsd`
+    - `baselineInputCost` = 假如全部 input 都没命中缓存；差值就是缓存省下的钱
+  - **用量扩展**（`lib/ai/usage.ts`）：`uncachedInputTokens / cacheHitRate / currency`
+    + `optimizationRate()` / `formatCacheRate()` / `formatSavings()`
+  - **自适应思考与长度**（`ai/policy.ts` 的 `planRequest()`，**纯规则，不额外调用模型**）
+    - `planReasoning()`：寒暄/极短→`none`；普通→`low`；代码/算法/长问题→`high`；
+      难题且要求深→`max`（极少）
+    - `planOutput()`：`compact / normal / detailed / deep` → 对应宽松的 `max_tokens` 安全网
+    - 用户手动关掉深度思考时最高只到 `low`；设置里关掉自适应则完全按手动设置
+  - **决策记录**：`RequestPlan` 挂在 `Message.plan` 上（思考强度 + 理由 + 长度预算 + 前缀指纹）
+  - **UI**：`UsageBadge` 默认一行 `2.8K tokens · ≈$0.007 · 省 34%`，
+    展开可见缓存命中率、无缓存基准价、缓存省下、以及本次的思考/长度决策
+  - **开关**（`Settings.runtime`，设置 → 行为倾向 → 成本优化）：
+    `stablePrefix` / `adaptiveReasoning` / `adaptiveOutput` 可单独关闭
+  - 冒烟测试 162→179 项
+  - **下一步（V2 Context Intelligence）**：Conversation State、Recent Window、
+    Memory/History Retrieval、Context Planner & Budget、Context Inspector
+  - **不要跳级**：没有 V1 的可靠成本数据，V3 的 Router 无法知道自己优化了什么要求
 
 ---
 
@@ -320,6 +348,7 @@ src/
     behavior.ts               ⭐ Behavior Profile：维度定义 / 默认 Profile / 提示词生成 / 三级解析
     pricing.ts                ⭐ 模型价格层：单价表 + estimateCost（exact/estimated/free/unavailable）
     ai/usage.ts               ⭐ 用量归一化：RawUsage → AiUsage、格式化、会话累加
+    ai/policy.ts              ⭐ 成本决策：前缀指纹 + 自适应思考强度 / 输出预算（纯规则）
     storage.ts                ⭐ 本地持久化 + **数据迁移唯一入口**
     device.ts                 触屏/窄屏检测
     link.ts                   主题直链（hash 路由）+ 复制
@@ -429,9 +458,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.6.15
+版本         V0.7.0
 最新提交     （见 git log -1）
-分支         main 与 v0.6.15 已同步
+分支         main 与 v0.7.0 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

@@ -24,6 +24,8 @@ export interface StreamChatOptions {
   onReasoning?: (text: string) => void;
   /** 是否开启深度思考，以及思考强度 */
   thinking?: ThinkingOptions;
+  /** 输出 token 上限（成本安全网；不传则不限制） */
+  maxTokens?: number;
   /**
    * 用量回调：**各 Provider 在适配器内部**把自家原始字段解析成与厂商无关的 RawUsage，
    * 再交给上层统一归一化。聊天组件永远不接触厂商原始字段。

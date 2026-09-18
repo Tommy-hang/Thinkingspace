@@ -51,6 +51,10 @@ export interface BuildContextInput {
 export interface BuildContextResult {
   messages: ChatMessage[];
   manifest: ContextManifest;
+  /** 稳定前缀原文（system + behavior）——用于算指纹、判断 cache 是否可能失效 */
+  stableText: string;
+  stableChars: number;
+  dynamicChars: number;
 }
 
 /**
@@ -69,11 +73,13 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
   const out: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }];
   const parts: ContextPart[] = [];
   let totalChars = SYSTEM_PROMPT.length;
+  let stableChars = SYSTEM_PROMPT.length;
 
-  const push = (message: ChatMessage, part: ContextPart) => {
+  const push = (message: ChatMessage, part: ContextPart, stable = false) => {
     out.push(message);
     parts.push({ ...part, chars: message.content.length });
     totalChars += message.content.length;
+    if (stable) stableChars += message.content.length;
   };
 
   // Behavior Profile：控制「如何思考」，与「用哪些内容」分开统计
@@ -83,9 +89,15 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
       push(
         { role: 'system', content: behaviorPrompt },
         { kind: 'behavior', label: '行为倾向', detail: input.behavior.name },
+        true,
       );
     }
   }
+
+  // ⚠️ 稳定前缀到此为止：上面只有「系统规则 + 行为配置」，内容不随对话变化。
+  // 下面的项目概述 / 祖先 / 锚点 / 检索 / 引用 / 对话 / 问题都属于动态部分。
+  // 保持这个顺序，才能最大化 Provider 上下文缓存的命中率。
+  const stableText = out.map((m) => m.content).join('\n');
 
   if (settings.includeProjectSummary && project.summary) {
     push(
@@ -208,5 +220,8 @@ export function buildContext(input: BuildContextInput): BuildContextResult {
   return {
     messages: out,
     manifest: { parts, excludedTopics, totalChars },
+    stableText,
+    stableChars,
+    dynamicChars: Math.max(0, totalChars - stableChars),
   };
 }

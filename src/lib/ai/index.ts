@@ -19,6 +19,7 @@ export interface RunChatInput {
   onDelta: (text: string) => void;
   onReasoning?: (text: string) => void;
   thinking?: ThinkingOptions;
+  maxTokens?: number;
   onUsage?: (raw: RawUsage) => void;
 }
 
@@ -41,7 +42,8 @@ export async function completeText(
 }
 
 export async function runChat(input: RunChatInput): Promise<void> {
-  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, onUsage } = input;
+  const { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, maxTokens, onUsage } =
+    input;
 
   if (requiresApiKey(provider) && !apiKey.trim()) {
     throw new Error(
@@ -49,7 +51,17 @@ export async function runChat(input: RunChatInput): Promise<void> {
     );
   }
 
-  const options = { provider, apiKey, messages, signal, onDelta, onReasoning, thinking, onUsage };
+  const options = {
+    provider,
+    apiKey,
+    messages,
+    signal,
+    onDelta,
+    onReasoning,
+    thinking,
+    maxTokens,
+    onUsage,
+  };
 
   switch (provider.kind) {
     case 'mock':

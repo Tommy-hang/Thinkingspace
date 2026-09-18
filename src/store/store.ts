@@ -27,6 +27,7 @@ import { newUuid, uid } from '../lib/id';
 import { buildContext } from '../lib/ai/contextBuilder';
 import { runChat } from '../lib/ai';
 import { normalizeUsage, type RawUsage } from '../lib/ai/usage';
+import { planRequest } from '../lib/ai/policy';
 import { findBehavior, resolveBehaviorId } from '../lib/behavior';
 import { runSearch } from '../lib/search';
 import { layoutTree } from '../lib/layout';
@@ -196,6 +197,8 @@ interface Actions {
   updateBehavior: (id: string, patch: Partial<BehaviorProfile>) => void;
   removeBehavior: (id: string) => void;
   setShowUsage: (show: boolean) => void;
+  /** Cost-Aware Runtime 开关（可单独关闭，便于定位与回滚） */
+  setRuntime: (patch: Partial<import('../types').RuntimeSettings>) => void;
   setCustomPrice: (model: string, price: ModelPrice) => void;
   removeCustomPrice: (model: string) => void;
 
@@ -1370,7 +1373,13 @@ export const useStore = create<StoreState>((set, get) => ({
       }
     }
 
-    const { messages: context, manifest } = buildContext({
+    const {
+      messages: context,
+      manifest,
+      stableText,
+      stableChars,
+      dynamicChars,
+    } = buildContext({
       project,
       nodes: get().nodes,
       messages: get().messages.filter((m) => m.id !== assistantMessage.id),
@@ -1382,10 +1391,20 @@ export const useStore = create<StoreState>((set, get) => ({
       behavior,
     });
 
-    // 上下文透镜：把「本次用了哪些内容」挂在回答上，供用户展开查看
+    // ---- 成本决策（纯规则，不额外调用任何模型）----
+    const plan = planRequest({
+      question,
+      stableText,
+      stableChars,
+      dynamicChars,
+      runtime: state.settings.runtime,
+      manualThinking: state.settings.thinking,
+    });
+
+    // 上下文透镜 + 成本决策：一起挂到这条回答上
     set((s) => ({
       messages: s.messages.map((m) =>
-        m.id === assistantMessage.id ? { ...m, contextManifest: manifest } : m,
+        m.id === assistantMessage.id ? { ...m, contextManifest: manifest, plan } : m,
       ),
     }));
 
@@ -1419,7 +1438,11 @@ export const useStore = create<StoreState>((set, get) => ({
         signal: controller.signal,
         onDelta: append,
         onReasoning: appendReasoning,
-        thinking: state.settings.thinking,
+        thinking:
+          plan.reasoning === 'none'
+            ? { enabled: false, effort: 'low' as const }
+            : { enabled: true, effort: plan.reasoning },
+        maxTokens: plan.maxOutputTokens,
         onUsage: (raw) => {
           rawUsage = raw;
         },
@@ -1910,6 +1933,11 @@ export const useStore = create<StoreState>((set, get) => ({
   setShowUsage: (show) =>
     set((s) => ({
       settings: { ...s.settings, behavior: { ...s.settings.behavior, showUsage: show } },
+    })),
+
+  setRuntime: (patch) =>
+    set((s) => ({
+      settings: { ...s.settings, runtime: { ...s.settings.runtime, ...patch } },
     })),
 
   setCustomPrice: (model, price) =>

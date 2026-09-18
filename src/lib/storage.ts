@@ -10,6 +10,7 @@ import type {
   Project,
   ProviderConfig,
   ReasoningSettings,
+  RuntimeSettings,
   SearchProviderConfig,
   SearchSettings,
   Settings,
@@ -158,6 +159,13 @@ export const DEFAULT_BEHAVIOR_SETTINGS: BehaviorSettings = {
   showUsage: true,
 };
 
+/** Cost-Aware Runtime：每一项都能单独关掉 */
+export const DEFAULT_RUNTIME: RuntimeSettings = {
+  stablePrefix: true,
+  adaptiveReasoning: true,
+  adaptiveOutput: true,
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   activeProviderId: 'mock',
   providers: DEFAULT_PROVIDERS,
@@ -172,6 +180,7 @@ export const DEFAULT_SETTINGS: Settings = {
   search: DEFAULT_SEARCH_SETTINGS,
   reasoning: DEFAULT_REASONING,
   behavior: DEFAULT_BEHAVIOR_SETTINGS,
+  runtime: DEFAULT_RUNTIME,
 };
 
 export type Secrets = Record<string, string>;
@@ -340,6 +349,7 @@ export function normalizeSettings(raw?: Partial<Settings> | null): Settings {
       ...raw?.behavior,
       profiles: mergeBehaviorProfiles(raw?.behavior?.profiles),
     },
+    runtime: { ...DEFAULT_RUNTIME, ...raw?.runtime },
   };
 }
 
