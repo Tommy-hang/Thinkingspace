@@ -1,7 +1,7 @@
 # ThinkingSpace 交接文档
 
 > 给下一个 AI Agent：读完这份文件，你应该能立刻接手这个项目。
-> 最后更新：2026-09-17 · 当前版本 **V0.8.0**
+> 最后更新：2026-09-17 · 当前版本 **V0.7.1**
 
 ---
 
@@ -310,9 +310,26 @@ Provider 层（OpenAI 兼容 + 离线 mock）/ 流式输出 / Context Engine / B
   - **开关**（`Settings.runtime`，设置 → 行为倾向 → 成本优化）：
     `stablePrefix` / `adaptiveReasoning` / `adaptiveOutput` 可单独关闭
   - 冒烟测试 162→179 项
-  - **下一步（V2 Context Intelligence）**：Conversation State、Recent Window、
-    Memory/History Retrieval、Context Planner & Budget、Context Inspector
-  - **不要跳级**：没有 V1 的可靠成本数据，V3 的 Router 无法知道自己优化了什么要求
+  - **不要跳级**：没有 V1 的可靠成本数据，V3 的 Router 无法知道自己优化了什么
+- **V0.7.1**：Context Intelligence（V2，成本感知 Runtime 第二步）
+  - 目标：从「把整段历史发给模型」变成「只提供完成当前任务所需的信息」
+  - **新增 `lib/ai/contextPlanner.ts`**（纯函数，**零额外模型调用**）
+    - `extractFeatures()`：问题长度 / 是否代码 / 是否数学 / 约束数量 / 问号数
+    - `detectHistoryDependency()`：明显指代（刚才/继续/上面/那个/按之前的…）→ none/low/medium/high
+    - `planContext()`：依赖等级 → 最近窗口（2/4/6/10 条）+ 动态预算（6K/9K/14K/20K 字）+ 是否检索
+    - `tokenize()` / `lexicalScore()`：中英文混合**词法**检索（ASCII 单词 + 中文二元组），
+      **不需要 embedding、不引入向量库**
+    - `collectMemories()`：从**已有数据**构造记忆（项目概述 / 其它主题理解 / 未解决待解决问题 / 综合结论）
+    - `retrieveHistory()` / `rankByRelevance()`：相关度 × 重要度 × 近因，**要求相关度 > 0 才入选**
+  - **`contextBuilder.ts` 重写**：稳定前缀固定在前；动态内容成为「候选」，
+    按优先级（检索 > 锚点 > 引用 > 祖先 > 记忆 > 项目 > 较早历史）在预算内取舍；
+    输出顺序固定，避免打乱缓存
+  - **Context Inspector**：`ContextManifest.inspector` 记录可用/选中/排除字数、
+    记忆与历史条数、依赖等级 → 在「上下文透镜」里显示
+  - `Settings.runtime.contextIntelligence` 开关（可单独关闭，回退到 V1 行为）
+  - 冒烟测试 179→194 项
+  - **仍未做（V3 及后续）**：Conversation State（增量更新）、真正的向量检索（pgvector）、
+    Reranker、Model Router、Escalation、LLMLingua-2 压缩、Cost Simulator、Learned Router
 
 ---
 
@@ -458,9 +475,9 @@ Node Compare 之前的优先级低于"加固"；协作编辑、支付、自定�
 ## 11. 交接时的当前状态
 
 ```text
-版本         V0.8.0
+版本         V0.7.1
 最新提交     （见 git log -1）
-分支         main 与 v0.8.0 已同步
+分支         main 与 v0.7.1 已同步
 部署         ✅ GitHub Pages 自动部署正常
 备份         ✅ 每天 02:40（北京时间）自动运行，已实测
 保活         ✅ 每天 10:10 自动运行

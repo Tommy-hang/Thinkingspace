@@ -813,7 +813,7 @@ try {
   check('用量：优化率可计算', aiUsageMod.optimizationRate(uCached) > 0);
   check('用量：币种固定 USD', uCached.currency === 'USD');
 
-  // --- V0.8.0 Context Intelligence ---
+  // --- V0.7.1 Context Intelligence ---
   const plannerMod = await server.ssrLoadModule('/src/lib/ai/contextPlanner.ts');
   check(
     '上下文：无历史时依赖为 none',

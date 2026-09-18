@@ -118,7 +118,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.7.0 ✅ Cost Foundation：稳定前缀/动态上下文分离 + 前缀指纹 + 缓存遥测与成本拆分
     （`lib/pricing.ts` 的 baseline/savings）+ 自适应思考强度与回答长度（`ai/policy.ts`，纯规则）
     + `Settings.runtime` 三个开关
-  - V0.8.0 ✅ Context Intelligence：`ai/contextPlanner.ts`（依赖检测 / 词法检索 / 记忆 / 预算）
+  - V0.7.1 ✅ Context Intelligence：`ai/contextPlanner.ts`（依赖检测 / 词法检索 / 记忆 / 预算）
     + 上下文检视（Context Inspector）+ `Settings.runtime.contextIntelligence` 开关
 
 ## 安全规则
