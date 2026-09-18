@@ -164,6 +164,7 @@ export const DEFAULT_RUNTIME: RuntimeSettings = {
   stablePrefix: true,
   adaptiveReasoning: true,
   adaptiveOutput: true,
+  contextIntelligence: true,
 };
 
 export const DEFAULT_SETTINGS: Settings = {

@@ -1379,6 +1379,7 @@ export const useStore = create<StoreState>((set, get) => ({
       stableText,
       stableChars,
       dynamicChars,
+      inspector,
     } = buildContext({
       project,
       nodes: get().nodes,
@@ -1389,7 +1390,11 @@ export const useStore = create<StoreState>((set, get) => ({
       searchSources: sources,
       mentionedNodeIds: opts.mentions,
       behavior,
+      intelligence: state.settings.runtime?.contextIntelligence ?? true,
     });
+
+    // 上下文检视数据一并挂到回答上，供「上下文透镜」解释为什么只发了这些
+    manifest.inspector = inspector;
 
     // ---- 成本决策（纯规则，不额外调用任何模型）----
     const plan = planRequest({

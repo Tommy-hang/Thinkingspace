@@ -287,6 +287,11 @@ export function BehaviorSettings() {
               checked={runtime?.adaptiveOutput ?? true}
               onChange={(v) => setRuntime({ adaptiveOutput: v })}
             />
+            <Toggle
+              label="上下文智能（按相关度挑选历史与记忆）"
+              checked={runtime?.contextIntelligence ?? true}
+              onChange={(v) => setRuntime({ contextIntelligence: v })}
+            />
           </div>
           <p className="mt-2 text-[11.5px] leading-relaxed" style={{ color: 'var(--faint)' }}>
             这些优化全部由<strong>规则</strong>完成，不会为了做判断而额外调用模型。

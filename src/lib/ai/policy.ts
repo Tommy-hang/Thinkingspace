@@ -98,6 +98,7 @@ const RUNTIME_FALLBACK: RuntimeSettings = {
   stablePrefix: true,
   adaptiveReasoning: true,
   adaptiveOutput: true,
+  contextIntelligence: true,
 };
 
 export function planRequest(input: PlanRequestInput): RequestPlan {

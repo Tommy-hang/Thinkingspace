@@ -118,6 +118,21 @@ export interface ContextManifest {
   excludedTopics: number;
   /** 估算的上下文字数（含系统提示词） */
   totalChars: number;
+  /** V2 上下文检视：可解释「为什么只发了这些」 */
+  inspector?: ContextInspector;
+}
+
+/** 上下文检视数据（V2） */
+export interface ContextInspector {
+  /** 全部可用动态内容（字） */
+  availableChars: number;
+  /** 实际选中（字） */
+  selectedChars: number;
+  /** 因预算不足被排除（字） */
+  excludedChars: number;
+  memoryCount: number;
+  historyCount: number;
+  historyDependency: string;
 }
 
 /** 「当前理解」的一个历史版本 */
@@ -477,6 +492,8 @@ export interface RuntimeSettings {
   adaptiveReasoning: boolean;
   /** 按问题类型自动给出回答长度预算 */
   adaptiveOutput: boolean;
+  /** 上下文智能：依赖检测 / 相关检索 / 上下文预算（V2） */
+  contextIntelligence: boolean;
 }
 
 export interface Settings {

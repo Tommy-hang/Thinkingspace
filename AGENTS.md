@@ -64,6 +64,7 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
 - `src/lib/pricing.ts` — ⭐ 模型价格层（单价表 + `estimateCost`，不猜未知模型价格）
 - `src/lib/ai/usage.ts` — ⭐ AI 用量归一化（Provider 差异只能出现在适配器里）
 - `src/lib/ai/policy.ts` — ⭐ 成本决策：前缀指纹 + 自适应思考强度 / 输出预算（纯规则）
+- `src/lib/ai/contextPlanner.ts` — ⭐ 上下文智能：依赖检测 / 词法检索 / 记忆 / 预算（纯函数）
 - `src/assets/` — 图片资源（宣传海报，已压缩；原图在根目录 `宣传海报/`）
 - `src/components/` — 界面组件
 - `scripts/smoke.mjs` — 冒烟测试
@@ -117,6 +118,8 @@ React 19 + TypeScript + Vite + Tailwind CSS v4 + @xyflow/react + zustand + Supab
   - V0.7.0 ✅ Cost Foundation：稳定前缀/动态上下文分离 + 前缀指纹 + 缓存遥测与成本拆分
     （`lib/pricing.ts` 的 baseline/savings）+ 自适应思考强度与回答长度（`ai/policy.ts`，纯规则）
     + `Settings.runtime` 三个开关
+  - V0.8.0 ✅ Context Intelligence：`ai/contextPlanner.ts`（依赖检测 / 词法检索 / 记忆 / 预算）
+    + 上下文检视（Context Inspector）+ `Settings.runtime.contextIntelligence` 开关
 
 ## 安全规则
 

@@ -813,6 +813,100 @@ try {
   check('用量：优化率可计算', aiUsageMod.optimizationRate(uCached) > 0);
   check('用量：币种固定 USD', uCached.currency === 'USD');
 
+  // --- V0.8.0 Context Intelligence ---
+  const plannerMod = await server.ssrLoadModule('/src/lib/ai/contextPlanner.ts');
+  check(
+    '上下文：无历史时依赖为 none',
+    plannerMod.detectHistoryDependency('随便问问', 0).level === 'none',
+  );
+  check(
+    '上下文：明显指代前文 → 高依赖',
+    plannerMod.detectHistoryDependency('继续刚才那个方案，按之前说的改', 5).level === 'high',
+  );
+  check(
+    '上下文：短问题 → 中依赖',
+    plannerMod.detectHistoryDependency('那怎么办', 5).level === 'medium',
+  );
+  check(
+    '上下文：长独立问题 → 无依赖',
+    plannerMod.detectHistoryDependency(
+      '请介绍一下注意力机制的基本原理和常见用法，越全面越好，我需要写一份报告',
+      5,
+    ).level === 'none',
+  );
+
+  const pHigh = plannerMod.planContext(
+    plannerMod.extractFeatures('继续刚才那个方案，按之前说的改', 8),
+    20,
+  );
+  check('上下文：高依赖 → 更大窗口 + 检索历史', pHigh.recentTurns === 10 && pHigh.retrieveHistory);
+  const pNone = plannerMod.planContext(plannerMod.extractFeatures('什么是梯度下降', 0), 0);
+  check('上下文：无依赖 → 最小窗口', pNone.recentTurns === 2 && !pNone.retrieveHistory);
+
+  const toks = plannerMod.tokenize('注意力机制 attention');
+  check('检索：分词含英文单词', toks.has('attention'));
+  check('检索：分词含中文二元组', toks.has('注意'));
+  check('检索：相关度打分', plannerMod.lexicalScore(toks, '注意力机制是怎么工作的') > 0);
+  check('检索：不相关内容得 0', plannerMod.lexicalScore(toks, '今天天气很好') === 0);
+
+  const mems = plannerMod.collectMemories(
+    {
+      id: 'p1',
+      title: 'T',
+      summary: '总述',
+      createdAt: 0,
+      updatedAt: 0,
+      openQuestions: [{ id: 'q1', text: '为什么', createdAt: 0 }],
+    },
+    [
+      { ...t('a', null), title: '注意力机制', summary: '加权求和' },
+      { ...t('b', null), title: '位置编码', summary: '注入顺序' },
+    ],
+    'a',
+  );
+  check(
+    '记忆：包含项目与待解决问题',
+    mems.some((m) => m.namespace === 'project') &&
+      mems.some((m) => m.namespace === 'open-question'),
+  );
+  check('记忆：排除当前主题自身', !mems.some((m) => m.sourceNodeId === 'a'));
+
+  const hist = plannerMod.retrieveHistory(
+    [
+      { id: 'm1', nodeId: 'a', role: 'user', content: '注意力机制是什么', createdAt: Date.now() },
+      { id: 'm2', nodeId: 'a', role: 'assistant', content: '今天天气不错', createdAt: Date.now() },
+    ],
+    plannerMod.tokenize('注意力机制'),
+    5,
+  );
+  check('检索：历史按相关度召回', hist.length === 1 && hist[0].item.id === 'm1');
+
+  const bigCb = cbMod.buildContext({
+    project: {
+      id: 'p1',
+      title: '项目',
+      summary: '很长的项目概述'.repeat(200),
+      createdAt: 0,
+      updatedAt: 0,
+    },
+    nodes: [
+      { ...t('root', null), title: '根', summary: '根概述' },
+      { ...t('child', 'root'), title: '子' },
+    ],
+    messages: [{ id: 'm1', nodeId: 'child', role: 'user', content: '问题', createdAt: 0 }],
+    nodeId: 'child',
+    question: '继续刚才那个',
+    settings: {
+      includeProjectSummary: true,
+      includeAncestorSummaries: true,
+      ancestorDepth: 6,
+      maxAncestorChars: 240,
+    },
+    intelligence: true,
+  });
+  check('预算：产出上下文检视数据', Boolean(bigCb.inspector));
+  check('预算：识别出高历史依赖', bigCb.inspector.historyDependency === 'high');
+
   for (const [name, ok] of checks) {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`);
   }
